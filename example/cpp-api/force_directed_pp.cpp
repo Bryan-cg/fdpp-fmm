@@ -9,9 +9,8 @@ using namespace FDPP::EF;
 #define a2m ((M_PI / 180.0) * EARTH_R) // angular units to meters
 #define Haversine bg::strategy::distance::haversine<double>(EARTH_R)
 
-// TODO: lengte berekening boost library gebruiken en geen interpolatie
-// TODO: haversine boost library gebruiken
-// TODO: cos theta berekening, boost library mss gebruiken --> azimuth difference 2 line segments
+// TODO: Bug spring force nan
+// TODO: Electric force not correct yet?
 
 ElectricForce::ElectricForce(double length_edge_arg, double distance_arg, double c_arg) : length_edge(length_edge_arg), distance(distance_arg),
                                                                                           c(c_arg){};
@@ -136,7 +135,7 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
     LineString ls = trajectory.geom;
 
     // number of iterations
-    for (int i = 0; i < 1; i++)
+    for (int i = 0; i < 10; i++)
     {
         // Problem, only one direction for each edge in stead of two?
         for (int i = 1; i < ls.get_num_points() - 1; i++)
@@ -169,6 +168,10 @@ Point ForceDirectedPP::calculate_net_force(const Point &p, const Point &p_prev, 
     double dx_s = p1_delta[0] + p2_delta[0];
     double dy_s = p1_delta[1] + p2_delta[1];
     double dz_s = p1_delta[2] + p2_delta[2];
+
+    // double dx_s = 0;
+    // double dy_s = 0;
+    // double dz_s = 0;
 
     // calculate total electric force
     double fe_total = 0.0;
@@ -279,9 +282,9 @@ std::vector<double> ForceDirectedPP::calc_electric_force_displacement(const Poin
     double force_dist = sqrt(fx * fx + fy * fy + fz * fz);
     double max = 80; // 80m
     double limitedDist = std::min(force_dist, max);
-    double dx_x = 0.1 * (fx / force_dist * limitedDist);
-    double dy_y = 0.1 * (fy / force_dist * limitedDist);
-    double dz_z = 0.1 * (fz / force_dist * limitedDist);
+    double dx_x = 0.01 * (fx / force_dist * limitedDist);
+    double dy_y = 0.01 * (fy / force_dist * limitedDist);
+    double dz_z = 0.01 * (fz / force_dist * limitedDist);
     std::vector<double> p_res_cart;
     p_res_cart.push_back(dx_x);
     p_res_cart.push_back(dy_y);
