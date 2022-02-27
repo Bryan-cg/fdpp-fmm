@@ -2,13 +2,13 @@ cmake_minimum_required( VERSION 3.5.1)
 
 project(fmm-contrib)
 
-set(CMAKE_CXX_FLAGS "-O3 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE")
+set(CMAKE_CXX_FLAGS "-O3 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEGUB")
 set(CMAKE_CXX_STANDARD 11)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-O3 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE")
+set(CMAKE_CXX_FLAGS "-O3 -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/build")
 
@@ -68,9 +68,9 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-add_executable(fmm_print_network main.cpp)
-target_link_libraries(fmm_print_network
+add_executable(fmm_wrapper main.cpp fmm_wrap.cpp force_directed_pp.cpp)
+target_link_libraries(fmm_wrapper
   ${FMM_LIBRARY} ${GDAL_LIBRARIES} ${Boost_LIBRARIES}
   ${OpenMP_CXX_LIBRARIES})
 
-install(TARGETS fmm_print_network DESTINATION bin)
+install(TARGETS fmm_wrapper DESTINATION bin)

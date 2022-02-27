@@ -12,6 +12,7 @@ using namespace FMM::CORE;
 using namespace FMM::NETWORK;
 using namespace FMM::MM;
 void FMMApp::run() {
+  /*
   auto start_time = UTIL::get_current_time();
   FastMapMatch mm_model(network_, ng_, ubodt_);
   const FastMapMatchConfig &fmm_config = config_.fmm_config;
@@ -85,4 +86,5 @@ void FMMApp::run() {
   SPDLOG_INFO("Point match speed (excluding input): {}",
               points_matched / time_spent_exclude_input);
   SPDLOG_INFO("Time takes {}", time_spent);
+  */
 };

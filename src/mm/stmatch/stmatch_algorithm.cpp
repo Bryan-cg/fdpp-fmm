@@ -125,6 +125,7 @@ PyMatchResult STMATCH::match_wkt(
 // Procedure of HMM based map matching algorithm.
 MatchResult STMATCH::match_traj(const Trajectory &traj,
                                 const STMATCHConfig &config) {
+  SPDLOG_INFO("STM matching trajectory");
   SPDLOG_DEBUG("Count of points in trajectory {}", traj.geom.get_num_points());
   SPDLOG_DEBUG("Search candidates");
   Traj_Candidates tc = network_.search_tr_cs_knn(

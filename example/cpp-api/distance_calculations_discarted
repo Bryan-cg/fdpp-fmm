@@ -1,0 +1,139 @@
+double ForceDirectedPP::calculate_shortest_distance(const Point &p, const Point &p1_edge, const Point &p2_edge)
+{
+
+    std::vector<double> a = to_cart_cord(p1_edge);
+    std::vector<double> b = to_cart_cord(p2_edge);
+    std::vector<double> c = to_cart_cord(p);
+
+    std::vector<double> G = vector_product(a, b);
+    std::vector<double> F = vector_product(c, G);
+    std::vector<double> t = vector_product(G, F);
+
+    Point nearist_point = from_cart_cord(multiply_by_scalar(normalize(t), EARTH_R));
+    std::cout << "nearist point: " << nearist_point << std::endl;
+
+    return haversine_distance_m(p, nearist_point);
+    /*
+    // Wrong result?
+
+    // converting to cartesian coordinates
+    double x, y, x1, y1, x2, y2;
+    to_cart_cord(p, &x, &y);
+    to_cart_cord(p1_edge, &x1, &y1);
+    to_cart_cord(p2_edge, &x2, &y2);
+
+    double A = x - x1;
+    double B = y - y1;
+    double C = x2 - x1;
+    double D = y2 - y1;
+
+    double dot = A * C + B * D;
+    double len_sq = pow(C, 2) + pow(D, 2);
+    double param = -1;
+    if (len_sq != 0)
+    {
+        param = dot / len_sq;
+    }
+
+    double xx, yy;
+    if (param < 0)
+    {
+        xx = x1;
+        yy = y1;
+    }
+    else if (param > 1)
+    {
+        xx = x2;
+        yy = y2;
+    }
+    else
+    {
+        xx = x1 + param * C;
+        yy = y1 + param * D;
+    }
+    double dx = x - xx;
+    double dy = y - yy;
+    return sqrt(pow(dx, 2) + pow(dy, 2));
+    */
+}
+
+std::vector<double> ForceDirectedPP::vector_product(const std::vector<double> &a, const std::vector<double> &b)
+{
+    std::vector<double> result;
+    result.push_back(a[1] * b[2] - a[2] * b[1]);
+    result.push_back(a[2] * b[0] - a[0] * b[2]);
+    result.push_back(a[0] * b[1] - a[1] * b[0]);
+    return result;
+}
+
+std::vector<double> ForceDirectedPP::normalize(const std::vector<double> &t)
+{
+    double length = sqrt((t[0] * t[0]) + (t[1] * t[1]) + (t[2] * t[2]));
+    std::vector<double> result;
+    result.push_back(t[0] / length);
+    result.push_back(t[1] / length);
+    result.push_back(t[2] / length);
+    return result;
+}
+
+std::vector<double> ForceDirectedPP::multiply_by_scalar(const std::vector<double> &normalize, const double k)
+{
+    std::vector<double> result;
+    result.push_back(normalize[0] * k);
+    result.push_back(normalize[1] * k);
+    result.push_back(normalize[2] * k);
+    return result;
+}
+
+std::vector<double> ForceDirectedPP::to_cart_cord(const Point &p)
+{
+    std::vector<double> result;
+    result.push_back(EARTH_R * cos(p.get<1>() * d2r) * cos(p.get<0>() * d2r));
+    result.push_back(EARTH_R * cos(p.get<1>() * d2r) * sin(p.get<0>() * d2r));
+    result.push_back(EARTH_R * sin(p.get<1>() * d2r));
+    return result;
+}
+
+Point ForceDirectedPP::from_cart_cord(const std::vector<double> coord)
+{
+    double y = r2d * (asin(coord[2] / EARTH_R));
+    double x = r2d * (atan2(coord[1], coord[0]));
+    Point p;
+    p.set<0>(x);
+    p.set<1>(y);
+    return p;
+}
+
+double ForceDirectedPP::calculate_dot_product(const Point &p, const Point &p1_edge, const Point &p2_edge)
+{
+    double A = p.get<0>() - p1_edge.get<0>(); 
+    double B = p.get<1>() - p1_edge.get<1>();
+    double C = p2_edge.get<0>() - p1_edge.get<0>();
+    double D = p2_edge.get<1>() - p1_edge.get<1>();
+    double E = -D; 
+
+    double dot = A * E + B * C;
+    return dot;
+}
+
+Point ForceDirectedPP::mid_point(const Point &p1, const Point &p2)
+{
+    Point p_res;
+    double p1_long = p1.get<0>();
+    double p2_long = p2.get<0>();
+    double p1_lat_r = p1.get<1>() * d2r;
+    double p2_lat_r = p2.get<1>() * d2r;
+    double p1_long_r = p1.get<0>() * d2r;
+    double dlon = (p2_long - p1_long) * d2r;
+    double Bx = cos(p2_lat_r) * cos(dlon);
+    double By = cos(p2_lat_r) * sin(dlon);
+    double lat = atan2(sin(p1_lat_r) + sin(p2_lat_r), sqrt((cos(p1_lat_r) + Bx) * (cos(p1_lat_r) + Bx) + By * By));
+    double lon = p1_long_r + atan2(By, cos(p1_lat_r) + Bx);
+    p_res.set<0>(lon * r2d);
+    p_res.set<1>(lat * r2d);
+    return p_res;
+}
+
+double azimuth = atan2(cos(p2_edge.get<1>() * d2r) * sin(p2_edge.get<0>() * d2r - p1_edge.get<0>() * d2r),
+                                cos(p1_edge.get<1>() * d2r) * sin(p2_edge.get<1>() * d2r) -
+                                    sin(p1_edge.get<1>() * d2r) * cos(p2_edge.get<1>() * d2r) * cos(p2_edge.get<0>() * d2r - p1_edge.get<0>() * d2r));

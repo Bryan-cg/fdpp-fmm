@@ -88,7 +88,9 @@ MatchResult FastMapMatch::match_traj(const Trajectory &traj,
   Traj_Candidates tc = network_.search_tr_cs_knn(
     traj.geom, config.k, config.radius);
   SPDLOG_DEBUG("Trajectory candidate {}", tc);
-  if (tc.empty()) return MatchResult{};
+  if (tc.empty()){
+    return MatchResult{};
+  } 
   SPDLOG_DEBUG("Generate transition graph");
   TransitionGraph tg(tc, config.gps_error);
   SPDLOG_DEBUG("Update cost in transition graph");
@@ -187,7 +189,7 @@ std::string FastMapMatch::match_gps_file(
   int total_points = 0;
   int traj_matched = 0;
   int total_trajs = 0;
-  int step_size = 1000;
+  int step_size = 50;
   auto begin_time = UTIL::get_current_time();
   FMM::IO::GPSReader reader(gps_config);
   FMM::IO::CSVMatchResultWriter writer(result_config.file,
@@ -202,8 +204,11 @@ std::string FastMapMatch::match_gps_file(
       for (int i = 0; i < trajectories_fetched; ++i) {
         Trajectory &trajectory = trajectories[i];
         int points_in_tr = trajectory.geom.get_num_points();
-        MM::MatchResult result = match_traj(
-            trajectory, fmm_config);
+        MM::MatchResult result = match_traj(trajectory, fmm_config);
+        if(result.cpath.empty()) {
+          SPDLOG_INFO("HMM state transistion failed, using fallback STM for maching");
+          result = stmMatch_.match_traj(trajectory, stmConfig_);
+        }
         writer.write_result(trajectory,result);
         #pragma omp critical
         if (!result.cpath.empty()) {
@@ -215,7 +220,7 @@ std::string FastMapMatch::match_gps_file(
         ++progress;
         if (progress % step_size == 0) {
           std::stringstream buf;
-          buf << "Progress " << progress << '\n';
+          buf << "Matched " << progress << " trajectories\n";
           std::cout << buf.rdbuf();
         }
       }

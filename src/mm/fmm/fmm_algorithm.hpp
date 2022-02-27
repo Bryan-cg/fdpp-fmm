@@ -17,6 +17,7 @@
 #include "python/pyfmm.hpp"
 #include "config/gps_config.hpp"
 #include "config/result_config.hpp"
+#include "mm/stmatch/stmatch_algorithm.hpp"
 
 #include <string>
 #include <boost/property_tree/ptree.hpp>
@@ -89,11 +90,15 @@ class FastMapMatch {
    * @param network road network
    * @param graph road network graph
    * @param ubodt Upperbounded origin destination table
+   * @param stm spatial temporal backup matcher
+   * @param stmConfig spatial temporal matcher configuration
    */
   FastMapMatch(const NETWORK::Network &network,
       const  NETWORK::NetworkGraph &graph,
-      std::shared_ptr<UBODT> ubodt)
-      : network_(network), graph_(graph), ubodt_(ubodt) {
+      std::shared_ptr<UBODT> ubodt,
+      STMATCH &stmMatch,
+      STMATCHConfig &stmConfig)
+      : network_(network), graph_(graph), ubodt_(ubodt), stmMatch_(stmMatch), stmConfig_(stmConfig) {
   };
   /**
    * Match a trajectory to the road network
@@ -160,6 +165,8 @@ class FastMapMatch {
   const NETWORK::Network &network_;
   const NETWORK::NetworkGraph &graph_;
   std::shared_ptr<UBODT> ubodt_;
+  STMATCHConfig &stmConfig_;
+  STMATCH &stmMatch_;
 };
 }
 }

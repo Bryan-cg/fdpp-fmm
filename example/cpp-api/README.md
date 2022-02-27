@@ -4,8 +4,9 @@ First install fmm with the option `FMM_INSTALL_HEADER`
 
 ```
 # In the project folder of fmm
+mkdir build
 cd build
-cmake .. -DFMM_INSTALL_HEADER
+cmake .. -D FMM_INSTALL_HEADER=on
 make
 sudo make install
 ```
