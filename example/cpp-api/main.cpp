@@ -20,6 +20,5 @@ int main(int argc, char **argv)
     std::unique_ptr<ForceDirectedPP> fdpp(new ForceDirectedPP(argv[1], argv[2], argv[3]));
     fdpp->match();
   }
-  SPDLOG_INFO("Finished");
   return 0;
 };

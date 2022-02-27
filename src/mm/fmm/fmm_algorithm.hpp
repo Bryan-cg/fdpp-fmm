@@ -136,12 +136,10 @@ class FastMapMatch {
    * @param  trajectories    [description]
    * @param  result_config [description]
    * @param  config        [description]
-   * @return a string storing information about running time and
-   * statistics.
+   * @return vector with MM::MatchResult.
    */
-  std::string match_trajectories(
+  std::vector<MM::MatchResult> match_trajectories(
     std::vector<FMM::CORE::Trajectory> &trajectories,
-    const FMM::CONFIG::ResultConfig &result_config,
     const FastMapMatchConfig &config,
     bool use_omp = true
   );

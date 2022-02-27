@@ -22,12 +22,10 @@ private:
     // STM backup
     STMATCHConfig *stm_config;
     STMATCH *stm;
-    // IO config
-    ResultConfig *resultConfig;
 
 public:
     fmm_wrap(char *ubodtFile, const Network &network, const NetworkGraph &networkGraph);
     ~fmm_wrap();
     void matchAllSTM();
-    void match(std::vector<FMM::CORE::Trajectory> &trajectories);
+    std::vector<MM::MatchResult> match(std::vector<FMM::CORE::Trajectory> &trajectories);
 };

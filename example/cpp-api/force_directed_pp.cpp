@@ -22,7 +22,12 @@ double ElectricForce::calculate(double cos_theta) const
     {
         cos_theta = cos_theta / 2;
     }
-    return 1 * sqrt(length_edge) * cos_theta / distance;
+    double force = 1 * sqrt(length_edge) * cos_theta / distance;
+    // if (isnan(force)) //bug??
+    // {
+    //     force = 0;
+    // }
+    return force;
 };
 
 double ElectricForce::calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace) const
@@ -47,23 +52,27 @@ ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtF
 
     this->network = new NETWORK::Network(shapeFile_str, "fid", "u", "v");
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
-    this->gpsConfig = new GPSConfig(tracesFile);
+    this->gps_config = new GPSConfig(tracesFile);
+    this->result_config = new ResultConfig();
+    result_config->file = "output.csv";
     SPDLOG_INFO("Network configuration Force directed algorithm");
     SPDLOG_INFO("Network file {}", shapeFile_str);
     SPDLOG_INFO("Network node count {}", network->get_node_count());
     SPDLOG_INFO("Network edge count {}", network->get_edge_count());
     SPDLOG_INFO("NetworkGraph number of vertices {}", networkGraph->get_num_vertices());
     SPDLOG_INFO("Network initialized");
-    gpsConfig->print();
+    gps_config->print();
+    result_config->print();
     SPDLOG_INFO("Initializing FMM");
-    fmmw = std::make_shared<fmm_wrap>(ubodtFile, *network, *networkGraph);
+    fmmw = std::unique_ptr<fmm_wrap>(new fmm_wrap(ubodtFile, *network, *networkGraph));
 }
 
 ForceDirectedPP::~ForceDirectedPP()
 {
     delete network;
     delete networkGraph;
-    delete gpsConfig;
+    delete gps_config;
+    delete result_config;
 }
 
 LineString ForceDirectedPP::point_to_lineString(const Point &p)
@@ -91,7 +100,13 @@ double ForceDirectedPP::haversine_distance_m(const Point &p1, const Point &p2)
 
 void ForceDirectedPP::match()
 {
-    FMM::IO::GPSReader reader(*gpsConfig);
+    if (!result_config->validate())
+    {
+        SPDLOG_CRITICAL("result_config invalid");
+        return;
+    }
+    FMM::IO::GPSReader reader(*gps_config);
+    FMM::IO::CSVMatchResultWriter writer(result_config->file, result_config->output_config);
     int buffer_trajectories_size = 100000;
     while (reader.has_next_trajectory())
     {
@@ -101,19 +116,27 @@ void ForceDirectedPP::match()
         for (int i = 0; i < trajectories_fetched; ++i)
         {
             Trajectory &trajectory = trajectories[i];
-            displace_linestring(trajectory);
+            force_directed_displacement(trajectory);
         }
         SPDLOG_INFO("FMM of displaced GPS points");
-        fmmw->match(trajectories); //bug file overwritten
+        std::vector<MM::MatchResult> match_results = fmmw->match(trajectories);
+        SPDLOG_INFO("Flushing matched trajectories");
+        for (int i = 0; i < trajectories_fetched; i++)
+        {
+            Trajectory &trajectory = trajectories[i];
+            MatchResult &match_result = match_results[i];
+            writer.write_result(trajectory, match_result);
+        }
     }
+    SPDLOG_INFO("FDPP & FMM completed");
 }
 
-void ForceDirectedPP::displace_linestring(Trajectory &trajectory)
+void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
 {
     LineString ls = trajectory.geom;
 
     // number of iterations
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 1; i++)
     {
         // Problem, only one direction for each edge in stead of two?
         for (int i = 1; i < ls.get_num_points() - 1; i++)
@@ -134,7 +157,7 @@ void ForceDirectedPP::displace_linestring(Trajectory &trajectory)
         }
     }
     trajectory.geom = ls;
-    //std::cout << ls << std::endl;
+    std::cout << ls << std::endl;
 }
 
 Point ForceDirectedPP::calculate_net_force(const Point &p, const Point &p_prev, const Point &p_next, const FMM::MM::Traj_Candidates &candidates)

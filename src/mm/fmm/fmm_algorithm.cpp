@@ -256,28 +256,15 @@ std::string FastMapMatch::match_gps_file(
   return oss.str();
 };
 
-std::string FastMapMatch::match_trajectories(
+std::vector<MatchResult> FastMapMatch::match_trajectories(
   std::vector<FMM::CORE::Trajectory> &trajectories,
-  const FMM::CONFIG::ResultConfig &result_config,
   const FastMapMatchConfig &fmm_config,
   bool use_omp
   ){
   std::ostringstream oss;
   std::string status;
-  bool validate = true;
-  if (!result_config.validate()) {
-    oss<<"result_config invalid\n";
-    validate = false;
-  }
-  if (!fmm_config.validate()) {
-    oss<<"fmm_config invalid\n";
-    validate = false;
-  }
-  if (!validate){
-    oss<<"match_gps_file canceled\n";
-    return oss.str();
-  }
   // Start map matching
+  std::vector<MatchResult> match_results;
   int progress = 0;
   int points_matched = 0;
   int total_points = 0;
@@ -285,8 +272,6 @@ std::string FastMapMatch::match_trajectories(
   int total_trajs = 0;
   int step_size = 50;
   auto begin_time = UTIL::get_current_time();
-  FMM::IO::CSVMatchResultWriter writer(result_config.file,
-                                       result_config.output_config);
   if (use_omp){
     int trajectories_fetched = trajectories.size();
     #pragma omp parallel for
@@ -298,12 +283,9 @@ std::string FastMapMatch::match_trajectories(
         SPDLOG_INFO("HMM state transistion failed, using fallback STM for maching");
         result = stmMatch_.match_traj(trajectory, stmConfig_);
       }
-      writer.write_result(trajectory,result);
       #pragma omp critical
+      match_results.push_back(result);
       if (!result.cpath.empty()) {
-        std::stringstream t;
-        t <<"matching: "<<trajectory.geom<< "\n";
-        std::cout << t.rdbuf();
         points_matched += points_in_tr;
         traj_matched+=1;
       }
@@ -324,7 +306,7 @@ std::string FastMapMatch::match_trajectories(
         Trajectory trajectory = *it;
         int points_in_tr = trajectory.geom.get_num_points();
         MM::MatchResult result = match_traj(trajectory, fmm_config);
-        writer.write_result(trajectory,result);
+        match_results.push_back(result);
         if (!result.cpath.empty()) {
           points_matched += points_in_tr;
           traj_matched+=1;
@@ -342,7 +324,8 @@ std::string FastMapMatch::match_trajectories(
   oss<<"Total trajectories " << total_trajs << " matched " << traj_matched <<"\n";
   oss<<"Map match percentage " << points_matched / (double) total_points <<"\n";
   oss<<"Map match speed " << points_matched / duration << " points/s \n";
-  return oss.str();
+  SPDLOG_INFO("{}", oss.str());
+  return match_results;
 };
 
 double FastMapMatch::get_sp_dist(

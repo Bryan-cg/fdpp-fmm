@@ -42,13 +42,16 @@ namespace FDPP
     private:
         Network *network;
         NetworkGraph *networkGraph;
-        GPSConfig *gpsConfig;
-        std::shared_ptr<fmm_wrap> fmmw;
+        // IO config
+        ResultConfig *result_config;
+        GPSConfig *gps_config;
+        //FMM - STM matcher
+        std::unique_ptr<fmm_wrap> fmmw;
 
     public:
         ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile);
         ~ForceDirectedPP();
-        void displace_linestring(Trajectory &trajectory);
+        void force_directed_displacement(Trajectory &trajectory);
         void match();
         LineString point_to_lineString(const Point &p);
         double interpolated_distance_lineString(const LineString &ls);
