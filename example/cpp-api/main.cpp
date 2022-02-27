@@ -19,11 +19,11 @@ int main(int argc, char **argv)
 
     // shapefile, tracefile
     //TODO automatic read trace file and force directed update
-    std::shared_ptr<ForceDirectedPP> fdpp = std::make_shared<ForceDirectedPP>(argv[1], argv[2]);
+    std::unique_ptr<ForceDirectedPP> fdpp = std::make_unique<ForceDirectedPP>(argv[1], argv[2]);
     fdpp->displace_linestring(wkt);
 
     // shapefile, tracefile, ubodtfile
-    // std::shared_ptr<fmm_wrap> fmmWrap = std::make_shared<fmm_wrap>(argv[1], argv[2], argv[3]);
+    // std::unique_ptr<fmm_wrap> fmmWrap = std::make_unique<fmm_wrap>(argv[1], argv[2], argv[3]);
     // fmmWrap->match();
   }
   SPDLOG_INFO("Finished");

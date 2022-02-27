@@ -130,6 +130,21 @@ class FastMapMatch {
     const FastMapMatchConfig &config,
     bool use_omp = true
   );
+
+  /**
+   * Match Trajectories stored in std::vector
+   * @param  trajectories    [description]
+   * @param  result_config [description]
+   * @param  config        [description]
+   * @return a string storing information about running time and
+   * statistics.
+   */
+  std::string match_trajectories(
+    std::vector<FMM::CORE::Trajectory> &trajectories,
+    const FMM::CONFIG::ResultConfig &result_config,
+    const FastMapMatchConfig &config,
+    bool use_omp = true
+  );
  protected:
   /**
    * Get shortest path distance between two candidates
