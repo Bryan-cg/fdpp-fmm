@@ -40,26 +40,30 @@ double SpringForce::calculate() const
     return c1 * log10(distance / c2);
 };
 
-ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile)
+ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile)
 {
     std::string shapeFile_str(shapeFile);
     std::string tracesFile_str(tracesFile);
 
     this->network = new NETWORK::Network(shapeFile_str, "fid", "u", "v");
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
-
+    this->gpsConfig = new GPSConfig(tracesFile);
     SPDLOG_INFO("Network configuration Force directed algorithm");
     SPDLOG_INFO("Network file {}", shapeFile_str);
     SPDLOG_INFO("Network node count {}", network->get_node_count());
     SPDLOG_INFO("Network edge count {}", network->get_edge_count());
     SPDLOG_INFO("NetworkGraph number of vertices {}", networkGraph->get_num_vertices());
     SPDLOG_INFO("Network initialized");
+    gpsConfig->print();
+    SPDLOG_INFO("Initializing FMM");
+    fmmw = std::make_shared<fmm_wrap>(ubodtFile, *network, *networkGraph);
 }
 
 ForceDirectedPP::~ForceDirectedPP()
 {
     delete network;
     delete networkGraph;
+    delete gpsConfig;
 }
 
 LineString ForceDirectedPP::point_to_lineString(const Point &p)
@@ -85,9 +89,28 @@ double ForceDirectedPP::haversine_distance_m(const Point &p1, const Point &p2)
     return bg::distance(_p1, _p2, Haversine);
 }
 
-void ForceDirectedPP::displace_linestring(const std::string &wkt)
+void ForceDirectedPP::match()
 {
-    LineString ls = wkt2linestring(wkt);
+    FMM::IO::GPSReader reader(*gpsConfig);
+    int buffer_trajectories_size = 100000;
+    while (reader.has_next_trajectory())
+    {
+        SPDLOG_INFO("Force directed displacement of buffered GPS points");
+        std::vector<Trajectory> trajectories = reader.read_next_N_trajectories(buffer_trajectories_size);
+        int trajectories_fetched = trajectories.size();
+        for (int i = 0; i < trajectories_fetched; ++i)
+        {
+            Trajectory &trajectory = trajectories[i];
+            displace_linestring(trajectory);
+        }
+        SPDLOG_INFO("FMM of displaced GPS points");
+        fmmw->match(trajectories); //bug file overwritten
+    }
+}
+
+void ForceDirectedPP::displace_linestring(Trajectory &trajectory)
+{
+    LineString ls = trajectory.geom;
 
     // number of iterations
     for (int i = 0; i < 20; i++)
@@ -110,7 +133,8 @@ void ForceDirectedPP::displace_linestring(const std::string &wkt)
             ls.get_geometry().at(i).set<1>(p_res.get<1>());
         }
     }
-    std::cout << ls << std::endl;
+    trajectory.geom = ls;
+    //std::cout << ls << std::endl;
 }
 
 Point ForceDirectedPP::calculate_net_force(const Point &p, const Point &p_prev, const Point &p_next, const FMM::MM::Traj_Candidates &candidates)

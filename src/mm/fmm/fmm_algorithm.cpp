@@ -301,6 +301,9 @@ std::string FastMapMatch::match_trajectories(
       writer.write_result(trajectory,result);
       #pragma omp critical
       if (!result.cpath.empty()) {
+        std::stringstream t;
+        t <<"matching: "<<trajectory.geom<< "\n";
+        std::cout << t.rdbuf();
         points_matched += points_in_tr;
         traj_matched+=1;
       }

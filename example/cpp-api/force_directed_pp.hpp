@@ -1,12 +1,14 @@
 #include <fmm/fmm-api.hpp>
-
+#include "fmm_wrap.hpp"
 #include <iostream>
 #include <cmath>
-#include <algorithm> // std::min
+#include <algorithm>
+#include <fmm/io/gps_reader.hpp>
 
 using namespace FMM;
 using namespace FMM::NETWORK;
 using namespace FMM::CORE;
+using namespace FMM::CONFIG;
 namespace bg = boost::geometry;
 
 typedef bg::model::point<double, 2, bg::cs::geographic<bg::degree>> PointDeg;
@@ -40,12 +42,14 @@ namespace FDPP
     private:
         Network *network;
         NetworkGraph *networkGraph;
+        GPSConfig *gpsConfig;
+        std::shared_ptr<fmm_wrap> fmmw;
 
     public:
-        ForceDirectedPP(char *shapeFile, char *tracesFile);
+        ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile);
         ~ForceDirectedPP();
-        void displace_linestring(const std::string &wkt);
-
+        void displace_linestring(Trajectory &trajectory);
+        void match();
         LineString point_to_lineString(const Point &p);
         double interpolated_distance_lineString(const LineString &ls);
         double haversine_distance_m(const Point &p1, const Point &p2);
