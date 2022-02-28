@@ -1,7 +1,7 @@
 #include "force_directed_pp.hpp"
 
 using namespace FDPP;
-using namespace FDPP::EF;
+using namespace FDPP::FORCE;
 
 #define EARTH_R 6378137
 #define d2r (M_PI / 180.0)             // degrees to radians
@@ -41,15 +41,26 @@ double ElectricForce::calculate_cos_theta(const Point &p1_edge, const Point &p2_
     return cos(az_trace - az_edge);
 };
 
-SpringForce::SpringForce(double distance_arg, double c1_arg, double c2_arg) : distance(distance_arg), c1(c1_arg), c2(c2_arg){};
+SpringForceAttr::SpringForceAttr(double distance_arg, double c1_arg, double c2_arg) : distance(distance_arg), c1(c1_arg), c2(c2_arg){};
 
-double SpringForce::calculate() const
+double SpringForceAttr::calculate() const
 {
     if (distance <= 0.000)
     {
         return 0.0;
     }
     return c1 * log(distance / c2);
+};
+
+SpringForceRep::SpringForceRep(double distance_arg, double c3_arg = 1) : distance(distance_arg), c3(c3_arg){};
+
+double SpringForceRep::calculate() const
+{
+    if (distance <= 0.000)
+    {
+        return 0.0;
+    }
+    return c3 / pow(distance, 2);
 };
 
 ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile)

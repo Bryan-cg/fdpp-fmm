@@ -16,8 +16,9 @@ typedef boost::geometry::model::linestring<PointDeg> LineStringDeg;
 
 namespace FDPP
 {
-    namespace EF
+    namespace FORCE
     {
+        // Edges attract or repel point trace according to cosine
         struct ElectricForce
         {
             ElectricForce(double length_edge_arg, double distance_arg, double c_arg = 1);
@@ -27,15 +28,23 @@ namespace FDPP
             double calculate(double cos_theta) const;
             double calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace) const; /**< angle between edge and p1 & p2*/
         };
-        struct SpringForce
+        // Adjecent vertices attract each other
+        struct SpringForceAttr
         {
-            SpringForce(double distance_arg, double c1_arg = 2, double c2_arg = 1);
+            SpringForceAttr(double distance_arg, double c1_arg = 2, double c2_arg = 1);
             double distance;
             double c1; /**< Tuning paramter*/
             double c2; /**< Tuning paramter*/
             double calculate() const;
         };
-
+        // Non-adjecent vertices repel each other
+        struct SpringForceRep
+        {
+            SpringForceRep(double distance_arg, double c3_arg = 1);
+            double distance;
+            double c3; /**< Tuning paramter*/
+            double calculate() const;
+        };
     }
     class ForceDirectedPP
     {
