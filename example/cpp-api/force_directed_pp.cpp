@@ -17,15 +17,19 @@ ElectricForce::ElectricForce(double length_edge_arg, double distance_arg, double
 
 double ElectricForce::calculate(double cos_theta) const
 {
+    double force;
     if (cos_theta < 0)
     {
         cos_theta = cos_theta / 2;
     }
-    double force = 1 * sqrt(length_edge) * cos_theta / distance;
-    // if (isnan(force)) //bug??
-    // {
-    //     force = 0;
-    // }
+    if (distance <= 0.000)
+    {
+        force = 1 * sqrt(length_edge) * cos_theta;
+    }
+    else
+    {
+        force = 1 * sqrt(length_edge) * cos_theta / distance;
+    }
     return force;
 };
 
@@ -41,7 +45,11 @@ SpringForce::SpringForce(double distance_arg, double c1_arg, double c2_arg) : di
 
 double SpringForce::calculate() const
 {
-    return c1 * log10(distance / c2);
+    if (distance <= 0.000)
+    {
+        return 0.0;
+    }
+    return c1 * log(distance / c2);
 };
 
 ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile)
@@ -233,6 +241,15 @@ std::vector<double> ForceDirectedPP::calc_spring_force_displacement(const Point 
     std::vector<double> p2_cart = to_cart_cord(p2);
 
     double distance = haversine_distance_m(p1, p2);
+    // Duplicated point
+    if (distance <= 0.000)
+    {
+        std::vector<double> p_res_cart;
+        p_res_cart.push_back(0);
+        p_res_cart.push_back(0);
+        p_res_cart.push_back(0);
+        return p_res_cart;
+    }
     SpringForce sf_prev = {distance};
     double fs_total = sf_prev.calculate();
     double dx = abs(p1_cart[0] - p2_cart[0]);
