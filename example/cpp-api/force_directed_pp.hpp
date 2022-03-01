@@ -23,8 +23,8 @@ namespace FDPP
         {
             ElectricForce(double length_edge_arg, double distance_arg, double c_arg = 1);
             double length_edge;
-            double distance; /**< distance between edge and point from trace perpendicular */
-            double c;        /** Tuning parameter*/
+            double distance; /**< shortest distance between edge and point from trace */
+            double c;        /**< Tuning parameter*/
             double calculate(double cos_theta) const;
             double calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace) const; /**< angle between edge and p1 & p2*/
         };
@@ -32,17 +32,17 @@ namespace FDPP
         struct SpringForceAttr
         {
             SpringForceAttr(double distance_arg, double c1_arg = 2, double c2_arg = 1);
-            double distance;
-            double c1; /**< Tuning paramter*/
-            double c2; /**< Tuning paramter*/
+            double distance; /**< distance between adjecent vertices */
+            double c1;       /**< Tuning paramter*/
+            double c2;       /**< Tuning paramter*/
             double calculate() const;
         };
         // Non-adjecent vertices repel each other
         struct SpringForceRep
         {
-            SpringForceRep(double distance_arg, double c3_arg = 1);
-            double distance;
-            double c3; /**< Tuning paramter*/
+            SpringForceRep(double distance_arg, double c3_arg = 10);
+            double distance; /**< distance between non-adjecent vertices */
+            double c3;       /**< Tuning paramter*/
             double calculate() const;
         };
     }
@@ -54,7 +54,7 @@ namespace FDPP
         // IO config
         ResultConfig *result_config;
         GPSConfig *gps_config;
-        //FMM - STM matcher
+        // FMM - STM matcher
         std::unique_ptr<fmm_wrap> fmmw;
 
     public:
@@ -65,9 +65,10 @@ namespace FDPP
         LineString point_to_lineString(const Point &p);
         double interpolated_distance_lineString(const LineString &ls);
         double haversine_distance_m(const Point &p1, const Point &p2);
-        Point calculate_net_force(const Point &p, const Point &p_prev, const Point &p_next, const FMM::MM::Traj_Candidates &candidates);
+        Point calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls);
         std::vector<double> calc_electric_force_displacement(const Point &p1, const Point &p2, const double total_force);
-        std::vector<double> calc_spring_force_displacement(const Point &p1, const Point &p2);
+        std::vector<double> calc_attr_spring_force_displacement(const Point &p1, const Point &p2);
+        std::vector<double> calc_rep_spring_force_displacement(const Point &p1, const Point &p2);
         std::vector<double> to_cart_cord(const Point &p);
         Point from_cart_cord(const std::vector<double> &coord);
         void calculate_closest_point(const LineString &ls_edge, const Point &p, double *dist, Point *c_p);

@@ -52,7 +52,7 @@ double SpringForceAttr::calculate() const
     return c1 * log(distance / c2);
 };
 
-SpringForceRep::SpringForceRep(double distance_arg, double c3_arg = 1) : distance(distance_arg), c3(c3_arg){};
+SpringForceRep::SpringForceRep(double distance_arg, double c3_arg) : distance(distance_arg), c3(c3_arg){};
 
 double SpringForceRep::calculate() const
 {
@@ -60,7 +60,7 @@ double SpringForceRep::calculate() const
     {
         return 0.0;
     }
-    return c3 / pow(distance, 2);
+    return c3 / (distance * distance * distance);
 };
 
 ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile)
@@ -160,16 +160,13 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
         for (int i = 1; i < ls.get_num_points() - 1; i++)
         {
             Point p = ls.get_point(i);
-            Point p_prev = ls.get_point(i - 1);
-            Point p_next = ls.get_point(i + 1);
-
             LineString ls_point = point_to_lineString(p);
 
             // get edges within radius
             FMM::MM::Traj_Candidates candidates = network->search_tr_cs(ls_point, 0.001); // todo point
 
             // displacement point
-            Point p_res = calculate_net_force(p, p_prev, p_next, candidates);
+            Point p_res = calculate_net_force(i, candidates, ls);
             ls.get_geometry().at(i).set<0>(p_res.get<0>());
             ls.get_geometry().at(i).set<1>(p_res.get<1>());
         }
@@ -178,19 +175,41 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
     std::cout << ls << std::endl;
 }
 
-Point ForceDirectedPP::calculate_net_force(const Point &p, const Point &p_prev, const Point &p_next, const FMM::MM::Traj_Candidates &candidates)
+Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls)
 {
-    // calculate total spring force
-    std::vector<double> p_cart = to_cart_cord(p);
-    std::vector<double> p1_delta = calc_spring_force_displacement(p, p_prev);
-    std::vector<double> p2_delta = calc_spring_force_displacement(p, p_next);
-    double dx_s = p1_delta[0] + p2_delta[0];
-    double dy_s = p1_delta[1] + p2_delta[1];
-    double dz_s = p1_delta[2] + p2_delta[2];
+    const Point p = trace_ls.get_point(point_i);
+    const Point p_prev = trace_ls.get_point(point_i - 1);
+    const Point p_next = trace_ls.get_point(point_i + 1);
 
-    // double dx_s = 0;
-    // double dy_s = 0;
-    // double dz_s = 0;
+    // calculate total attractive spring force
+    std::vector<double> p_cart = to_cart_cord(p);
+    std::vector<double> p1_delta = calc_attr_spring_force_displacement(p, p_prev);
+    std::vector<double> p2_delta = calc_attr_spring_force_displacement(p, p_next);
+    double dx_s_attr = p1_delta[0] + p2_delta[0];
+    double dy_s_attr = p1_delta[1] + p2_delta[1];
+    double dz_s_attr = p1_delta[2] + p2_delta[2];
+
+    // double dx_s_attr = 0;
+    // double dy_s_attr = 0;
+    // double dz_s_attr = 0;
+
+    // calculate total repelling spring force displacement
+    double dx_s_rep = 0.0;
+    double dy_s_rep = 0.0;
+    double dz_s_rep = 0.0;
+
+    for (int i = 0; i < trace_ls.get_num_points(); i++)
+    {
+        // Not an adjacent vertex
+        if (i != point_i - 1 && i != point_i && i != point_i + 1)
+        {
+            const Point non_adj_point = trace_ls.get_point(i);
+            std::vector<double> non_adj_delta = calc_rep_spring_force_displacement(p, non_adj_point);
+            // dx_s_rep += non_adj_delta[0];
+            // dy_s_rep += non_adj_delta[1];
+            // dz_s_rep += non_adj_delta[2];
+        }
+    }
 
     // calculate total electric force
     double fe_total = 0.0;
@@ -229,24 +248,24 @@ Point ForceDirectedPP::calculate_net_force(const Point &p, const Point &p_prev, 
 
         // Calculate replaced point
         std::vector<double> delta_res;
-        delta_res.push_back(p_cart[0] + dx_s + dx_e);
-        delta_res.push_back(p_cart[1] + dy_s + dy_e);
-        delta_res.push_back(p_cart[2] + dz_s + dz_e);
+        delta_res.push_back(p_cart[0] + dx_s_attr - dx_s_rep + dx_e);
+        delta_res.push_back(p_cart[1] + dy_s_attr - dy_s_rep + dy_e);
+        delta_res.push_back(p_cart[2] + dz_s_attr - dz_s_rep + dz_e);
         Point p_res = from_cart_cord(delta_res);
         return p_res;
     }
     else
     {
         std::vector<double> delta_res;
-        delta_res.push_back(p_cart[0] + dx_s);
-        delta_res.push_back(p_cart[1] + dy_s);
-        delta_res.push_back(p_cart[2] + dz_s);
+        delta_res.push_back(p_cart[0] + dx_s_attr - dx_s_rep);
+        delta_res.push_back(p_cart[1] + dy_s_attr - dy_s_rep);
+        delta_res.push_back(p_cart[2] + dz_s_attr - dz_s_rep);
         Point p_res = from_cart_cord(delta_res);
         return p_res;
     }
 }
 
-std::vector<double> ForceDirectedPP::calc_spring_force_displacement(const Point &p1, const Point &p2)
+std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const Point &p1, const Point &p2)
 {
     std::vector<double> p1_cart = to_cart_cord(p1);
     std::vector<double> p2_cart = to_cart_cord(p2);
@@ -261,7 +280,7 @@ std::vector<double> ForceDirectedPP::calc_spring_force_displacement(const Point 
         p_res_cart.push_back(0);
         return p_res_cart;
     }
-    SpringForce sf_prev = {distance};
+    SpringForceAttr sf_prev = {distance};
     double fs_total = sf_prev.calculate();
     double dx = abs(p1_cart[0] - p2_cart[0]);
     double dy = abs(p1_cart[1] - p2_cart[1]);
@@ -279,9 +298,52 @@ std::vector<double> ForceDirectedPP::calc_spring_force_displacement(const Point 
     double force_dist = sqrt(fx * fx + fy * fy + fz * fz);
     double max = 80; // 80m
     double limitedDist = std::min(force_dist, max);
-    double dx_x = 1 * (fx / force_dist * limitedDist);
-    double dy_y = 1 * (fy / force_dist * limitedDist);
-    double dz_z = 1 * (fz / force_dist * limitedDist);
+    double dx_x = 0.25 * (fx / force_dist * limitedDist);
+    double dy_y = 0.25 * (fy / force_dist * limitedDist);
+    double dz_z = 0.25 * (fz / force_dist * limitedDist);
+    std::vector<double> p_res_cart;
+    p_res_cart.push_back(dx_x);
+    p_res_cart.push_back(dy_y);
+    p_res_cart.push_back(dz_z);
+    return p_res_cart;
+}
+
+std::vector<double> ForceDirectedPP::calc_rep_spring_force_displacement(const Point &p1, const Point &p2)
+{
+    std::vector<double> p1_cart = to_cart_cord(p1);
+    std::vector<double> p2_cart = to_cart_cord(p2);
+
+    double distance = haversine_distance_m(p1, p2);
+    // Duplicated point
+    if (distance <= 0.000)
+    {
+        std::vector<double> p_res_cart;
+        p_res_cart.push_back(0);
+        p_res_cart.push_back(0);
+        p_res_cart.push_back(0);
+        return p_res_cart;
+    }
+    SpringForceRep sf_prev = {distance};
+    double fs_total = sf_prev.calculate();
+    double dx = abs(p1_cart[0] - p2_cart[0]);
+    double dy = abs(p1_cart[1] - p2_cart[1]);
+    double dz = abs(p1_cart[2] - p2_cart[2]);
+    double fx = fs_total * (dx / distance);
+    double fy = fs_total * (dy / distance);
+    double fz = fs_total * (dz / distance);
+    if (p2_cart[0] < p1_cart[0])
+        fx = -fx;
+    if (p2_cart[1] < p1_cart[1])
+        fy = -fy;
+    if (p2_cart[2] < p1_cart[2])
+        fz = -fz;
+
+    double force_dist = sqrt(fx * fx + fy * fy + fz * fz);
+    double max = 80; // 80m
+    double limitedDist = std::min(force_dist, max);
+    double dx_x = 0.0001 * (fx / force_dist * limitedDist);
+    double dy_y = 0.0001 * (fy / force_dist * limitedDist);
+    double dz_z = 0.0001 * (fz / force_dist * limitedDist);
     std::vector<double> p_res_cart;
     p_res_cart.push_back(dx_x);
     p_res_cart.push_back(dy_y);
