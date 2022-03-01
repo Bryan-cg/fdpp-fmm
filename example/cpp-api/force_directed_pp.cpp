@@ -63,17 +63,20 @@ double SpringForceRep::calculate() const
     return c3 / (distance * distance * distance);
 };
 
-ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile)
+ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile, int iterations_arg)
 {
     std::string shapeFile_str(shapeFile);
     std::string tracesFile_str(tracesFile);
 
+    this->_iterations_fdpp = iterations_arg;
     this->network = new NETWORK::Network(shapeFile_str, "fid", "u", "v");
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
     this->gps_config = new GPSConfig(tracesFile);
     this->result_config = new ResultConfig();
     result_config->file = "output.csv";
-    SPDLOG_INFO("Network configuration Force directed algorithm");
+
+    SPDLOG_INFO("Iterations FDPP {}", _iterations_fdpp);
+    SPDLOG_INFO("Network configuration FDPP - FMM");
     SPDLOG_INFO("Network file {}", shapeFile_str);
     SPDLOG_INFO("Network node count {}", network->get_node_count());
     SPDLOG_INFO("Network edge count {}", network->get_edge_count());
@@ -154,7 +157,7 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
     LineString ls = trajectory.geom;
 
     // number of iterations
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < _iterations_fdpp; i++)
     {
         // Problem, only one direction for each edge in stead of two?
         for (int i = 1; i < ls.get_num_points() - 1; i++)
@@ -172,7 +175,7 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
         }
     }
     trajectory.geom = ls;
-    std::cout << ls << std::endl;
+    // std::cout << ls << std::endl;
 }
 
 Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls)
@@ -189,15 +192,11 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
     double dy_s_attr = p1_delta[1] + p2_delta[1];
     double dz_s_attr = p1_delta[2] + p2_delta[2];
 
-    // double dx_s_attr = 0;
-    // double dy_s_attr = 0;
-    // double dz_s_attr = 0;
-
     // calculate total repelling spring force displacement
     double dx_s_rep = 0.0;
     double dy_s_rep = 0.0;
     double dz_s_rep = 0.0;
-
+    /*
     for (int i = 0; i < trace_ls.get_num_points(); i++)
     {
         // Not an adjacent vertex
@@ -205,11 +204,12 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
         {
             const Point non_adj_point = trace_ls.get_point(i);
             std::vector<double> non_adj_delta = calc_rep_spring_force_displacement(p, non_adj_point);
-            // dx_s_rep += non_adj_delta[0];
-            // dy_s_rep += non_adj_delta[1];
-            // dz_s_rep += non_adj_delta[2];
+            dx_s_rep += non_adj_delta[0];
+            dy_s_rep += non_adj_delta[1];
+            dz_s_rep += non_adj_delta[2];
         }
     }
+    */
 
     // calculate total electric force
     double fe_total = 0.0;

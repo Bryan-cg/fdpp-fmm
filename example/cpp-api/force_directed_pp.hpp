@@ -49,6 +49,8 @@ namespace FDPP
     class ForceDirectedPP
     {
     private:
+        // Iterations FDPP
+        int _iterations_fdpp;
         Network *network;
         NetworkGraph *networkGraph;
         // IO config
@@ -58,7 +60,7 @@ namespace FDPP
         std::unique_ptr<fmm_wrap> fmmw;
 
     public:
-        ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile);
+        ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile, int iterations_arg = 1);
         ~ForceDirectedPP();
         void force_directed_displacement(Trajectory &trajectory);
         void match();
