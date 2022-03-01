@@ -9,9 +9,6 @@ using namespace FDPP::FORCE;
 #define a2m ((M_PI / 180.0) * EARTH_R) // angular units to meters
 #define Haversine bg::strategy::distance::haversine<double>(EARTH_R)
 
-// TODO: Bug spring force nan
-// TODO: Electric force not correct yet?
-
 ElectricForce::ElectricForce(double length_edge_arg, double distance_arg, double c_arg) : length_edge(length_edge_arg), distance(distance_arg),
                                                                                           c(c_arg){};
 
@@ -24,7 +21,7 @@ double ElectricForce::calculate(double cos_theta) const
     }
     if (distance <= 0.000)
     {
-        force = 1 * sqrt(length_edge) * cos_theta;
+        force = 0; 
     }
     else
     {
@@ -73,7 +70,7 @@ ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtF
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
     this->gps_config = new GPSConfig(tracesFile);
     this->result_config = new ResultConfig();
-    result_config->file = "output.csv";
+    result_config->file = "output_fdpp_5.csv";
 
     SPDLOG_INFO("Iterations FDPP {}", _iterations_fdpp);
     SPDLOG_INFO("Network configuration FDPP - FMM");
@@ -155,27 +152,30 @@ void ForceDirectedPP::match()
 void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
 {
     LineString ls = trajectory.geom;
-
-    // number of iterations
-    for (int i = 0; i < _iterations_fdpp; i++)
-    {
-        // Problem, only one direction for each edge in stead of two?
-        for (int i = 1; i < ls.get_num_points() - 1; i++)
+    LineStringDeg ls_d = cart_to_degr_linestring(ls);
+    // if (bg::length(ls_d) > 300 && ls.get_num_points() >= 30)
+    // {
+        // number of iterations
+        for (int i = 0; i < 20; i++)
         {
-            Point p = ls.get_point(i);
-            LineString ls_point = point_to_lineString(p);
+            // Problem, only one direction for each edge in stead of two?
+            for (int i = 1; i < ls.get_num_points() - 1; i++)
+            {
+                Point p = ls.get_point(i);
+                LineString ls_point = point_to_lineString(p);
 
-            // get edges within radius
-            FMM::MM::Traj_Candidates candidates = network->search_tr_cs(ls_point, 0.001); // todo point
+                // get edges within radius
+                FMM::MM::Traj_Candidates candidates = network->search_tr_cs(ls_point, 0.001); // todo point
 
-            // displacement point
-            Point p_res = calculate_net_force(i, candidates, ls);
-            ls.get_geometry().at(i).set<0>(p_res.get<0>());
-            ls.get_geometry().at(i).set<1>(p_res.get<1>());
-        }
+                // displacement point
+                Point p_res = calculate_net_force(i, candidates, ls);
+                ls.get_geometry().at(i).set<0>(p_res.get<0>());
+                ls.get_geometry().at(i).set<1>(p_res.get<1>());
+            }
+        // }
     }
     trajectory.geom = ls;
-    // std::cout << ls << std::endl;
+    std::cout << ls << std::endl;
 }
 
 Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls)
@@ -186,11 +186,11 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
 
     // calculate total attractive spring force
     std::vector<double> p_cart = to_cart_cord(p);
-    std::vector<double> p1_delta = calc_attr_spring_force_displacement(p, p_prev);
+    std::vector<double> p1_delta = calc_attr_spring_force_displacement(p, p_prev);//different direction?
     std::vector<double> p2_delta = calc_attr_spring_force_displacement(p, p_next);
-    double dx_s_attr = p1_delta[0] + p2_delta[0];
-    double dy_s_attr = p1_delta[1] + p2_delta[1];
-    double dz_s_attr = p1_delta[2] + p2_delta[2];
+    double dx_s_attr = p1_delta[0]; //+ p2_delta[0];
+    double dy_s_attr = p1_delta[1]; //+ p2_delta[1];
+    double dz_s_attr = p1_delta[2]; //+ p2_delta[2];
 
     // calculate total repelling spring force displacement
     double dx_s_rep = 0.0;
@@ -298,9 +298,9 @@ std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const P
     double force_dist = sqrt(fx * fx + fy * fy + fz * fz);
     double max = 80; // 80m
     double limitedDist = std::min(force_dist, max);
-    double dx_x = 0.25 * (fx / force_dist * limitedDist);
-    double dy_y = 0.25 * (fy / force_dist * limitedDist);
-    double dz_z = 0.25 * (fz / force_dist * limitedDist);
+    double dx_x = 0.2 * (fx / force_dist * limitedDist);
+    double dy_y = 0.2 * (fy / force_dist * limitedDist);
+    double dz_z = 0.2 * (fz / force_dist * limitedDist);
     std::vector<double> p_res_cart;
     p_res_cart.push_back(dx_x);
     p_res_cart.push_back(dy_y);
