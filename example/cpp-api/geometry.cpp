@@ -60,11 +60,52 @@ double GEOM::calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, con
     // Convert points to radians for calculations formula
     double az_edge = bg::formula::spherical_azimuth(p1_edge.get<0>() * d2r, p1_edge.get<1>() * d2r, p2_edge.get<0>() * d2r, p2_edge.get<1>() * d2r);
     double az_trace = bg::formula::spherical_azimuth(p1_trace.get<0>() * d2r, p1_trace.get<1>() * d2r, p2_trace.get<0>() * d2r, p2_trace.get<1>() * d2r);
-    // std::cout << "---" << std::endl;
-    // std::cout << "GEOMETRYCOLLECTION(" << p1_edge << ", " << p2_edge << ")" << std::endl;
-    // std::cout << "GEOMETRYCOLLECTION(" << p1_trace << ", " << p2_trace << ")" << std::endl;
-    // std::cout << az_trace * r2d << std::endl;
-    // std::cout << az_edge * r2d << std::endl;
-    // std::cout << (az_trace - az_edge) * r2d << std::endl;
     return cos(az_trace - az_edge);
 };
+
+void GEOM::calculate_closest_point(const LineString &ls_edge, const Point &p, double *dist, Point *c_p)
+{
+    double px = p.get<0>();
+    double py = p.get<1>();
+    double offset;
+    double closest_x, closest_y;
+    ALGORITHM::linear_referencing(px, py, ls_edge, dist, &offset, &closest_x, &closest_y);
+    *c_p = Point(closest_x, closest_y);
+    *dist = GEOM::haversine_distance_m(p, *c_p);
+}
+
+void GEOM::calc_accuracy(const LineStringDeg &trace, const LineStringDeg &match, double *li, double *avgA, double *frechet, double *hausdorff)
+{
+    *frechet = bg::discrete_frechet_distance(trace, match);
+    *hausdorff = bg::discrete_hausdorff_distance(trace, match);
+    *li = bg::length(match) / bg::length(trace);
+    std::cout << bg::length(match) << " " << bg::length(trace) << std::endl;
+    *avgA = GEOM::calc_avg_error(trace, match);
+}
+
+double GEOM::calc_avg_error(const LineStringDeg &trace, const LineStringDeg &match)
+{
+    const int N = trace.size();
+    const int M = match.size();
+    double total_min = 0.0;
+    for (int i = 0; i < N; i++)
+    {
+        Point p(trace.at(i).get<0>(), trace.at(i).get<1>());
+        double min_dist = INT_MAX;
+        for (int j = 1; j < M; j++)
+        {
+            LineString line_seg;
+            line_seg.add_point(match.at(j - 1).get<0>(), match.at(j - 1).get<1>());
+            line_seg.add_point(match.at(j).get<0>(), match.at(j).get<1>());
+            double dist;
+            Point c_p;
+            GEOM::calculate_closest_point(line_seg, p, &dist, &c_p);
+            if (dist < min_dist)
+            {
+                min_dist = dist;
+            }
+        }
+        total_min += min_dist;
+    }
+    return total_min / N;
+}

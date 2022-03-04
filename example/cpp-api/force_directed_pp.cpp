@@ -95,7 +95,13 @@ void ForceDirectedPP::match()
     {
         SPDLOG_INFO("Force directed displacement of buffered GPS points");
         std::vector<Trajectory> trajectories = reader.read_next_N_trajectories(buffer_trajectories_size);
+        std::vector<LineString> traces;
         int trajectories_fetched = trajectories.size();
+        for (int i = 0; i < trajectories_fetched; i++)
+        {
+            LineString tmp = trajectories[i].geom;
+            traces.push_back(tmp);
+        }
         for (int i = 0; i < trajectories_fetched; ++i)
         {
             Trajectory &trajectory = trajectories[i];
@@ -103,13 +109,38 @@ void ForceDirectedPP::match()
         }
         SPDLOG_INFO("FMM of displaced GPS points");
         std::vector<MM::MatchResult> match_results = fmmw->match(trajectories);
+        sort(match_results.begin(), match_results.end(), [](const MatchResult &r1, const MatchResult &r2)
+             { return r1.id < r2.id; });
         SPDLOG_INFO("Flushing matched trajectories");
+        double li_total = 0.0;
+        double avgE_total = 0.0;
+        double frechet_total = 0.0;
+        double hausdorff_total = 0.0;
         for (int i = 0; i < trajectories_fetched; i++)
         {
             Trajectory &trajectory = trajectories[i];
             MatchResult &match_result = match_results[i];
             writer.write_result(trajectory, match_result);
+            double li, avgE, frechet, hausdorff;
+            GEOM::calc_accuracy(
+                GEOM::cart_to_degr_linestring(traces[i]),
+                GEOM::cart_to_degr_linestring(match_result.mgeom),
+                &li,
+                &avgE,
+                &frechet,
+                &hausdorff);
+
+            li_total += li;
+            avgE_total += avgE;
+            frechet_total += frechet;
+            hausdorff_total += hausdorff;
+            printf("%f ", li);
         }
+        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}",
+                    li_total / trajectories_fetched,
+                    avgE_total / trajectories_fetched,
+                    frechet_total / trajectories_fetched,
+                    hausdorff_total / trajectories_fetched);
     }
     SPDLOG_INFO("FDPP & FMM completed");
 }
@@ -117,9 +148,9 @@ void ForceDirectedPP::match()
 void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
 {
     FDPP::IO::CSVIterationWriter iter_writer("iterations.csv");
-    LineString ls = FDPP::UTIL::add_noise(trajectory.geom);
+    LineString ls = trajectory.geom; // FDPP::UTIL::add_noise(trajectory.geom);
     LineStringDeg ls_d = GEOM::cart_to_degr_linestring(ls);
-    
+
     // number of iterations
     for (int i = 0; i < _iterations_fdpp; i++)
     {
@@ -139,7 +170,7 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
         }
         // iter_writer.write_result(i + 1, ls);
     }
-    
+
     trajectory.geom = ls;
     // std::cout << ls << std::endl;
 }
@@ -197,7 +228,7 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
             Point p_dir;
             double d;
             double l = bg::length(lsdg); // haversine_distance_m(p1_edge, p2_edge);
-            calculate_closest_point(edge_lst, p, &d, &p_dir);
+            GEOM::calculate_closest_point(edge_lst, p, &d, &p_dir);
             ElectricForce ef = {l, d};
             double cos_theta = GEOM::calculate_cos_theta(p1_edge, p2_edge, p_prev, p_next);
             double ef_i = ef.calculate(cos_theta);
@@ -380,15 +411,4 @@ std::vector<double> ForceDirectedPP::calc_electric_force_displacement(const Poin
     p_res_cart.push_back(dy_y);
     p_res_cart.push_back(dz_z);
     return p_res_cart;
-}
-
-void ForceDirectedPP::calculate_closest_point(const LineString &ls_edge, const Point &p, double *dist, Point *c_p)
-{
-    double px = p.get<0>();
-    double py = p.get<1>();
-    double offset;
-    double closest_x, closest_y;
-    ALGORITHM::linear_referencing(px, py, ls_edge, dist, &offset, &closest_x, &closest_y);
-    *c_p = Point(closest_x, closest_y);
-    *dist = GEOM::haversine_distance_m(p, *c_p);
 }
