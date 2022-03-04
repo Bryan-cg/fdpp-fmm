@@ -58,7 +58,7 @@ ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtF
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
     this->gps_config = new GPSConfig(tracesFile);
     this->result_config = new ResultConfig();
-    result_config->file = "output_fdpp_5.csv";
+    result_config->file = "output_fdpp_10.csv";
 
     SPDLOG_INFO("Iterations FDPP {}", _iterations_fdpp);
     SPDLOG_INFO("Network configuration FDPP - FMM");
@@ -119,7 +119,7 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
     FDPP::IO::CSVIterationWriter iter_writer("iterations.csv");
     LineString ls = FDPP::UTIL::add_noise(trajectory.geom);
     LineStringDeg ls_d = GEOM::cart_to_degr_linestring(ls);
-/*
+    
     // number of iterations
     for (int i = 0; i < _iterations_fdpp; i++)
     {
@@ -137,11 +137,11 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
             ls.get_geometry().at(j).set<0>(p_res.get<0>());
             ls.get_geometry().at(j).set<1>(p_res.get<1>());
         }
-        //iter_writer.write_result(i + 1, ls);
+        // iter_writer.write_result(i + 1, ls);
     }
-    */
+    
     trajectory.geom = ls;
-    std::cout << ls << std::endl;
+    // std::cout << ls << std::endl;
 }
 
 Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls)

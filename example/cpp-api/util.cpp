@@ -2,6 +2,7 @@
 
 LineString FDPP::UTIL::add_noise(const LineString &ls)
 {
+    //nog punten verwijderen?
     LineString result;
     int points = ls.get_num_points();
     for (int i = 0; i < points; i++)
