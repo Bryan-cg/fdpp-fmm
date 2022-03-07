@@ -19,7 +19,7 @@ double ElectricForce::calculate(double cos_theta) const
     }
     else
     {
-        force = c * sqrt(length_edge) * cos_theta / distance; //(distance * distance);
+        force = c * sqrt(length_edge) * cos_theta / distance;
     }
     return force;
 };
@@ -92,7 +92,16 @@ void ForceDirectedPP::match()
     while (reader.has_next_trajectory())
     {
         SPDLOG_INFO("Force directed displacement of buffered GPS points");
-        std::vector<Trajectory> trajectories = reader.read_next_N_trajectories(buffer_trajectories_size);
+        std::vector<Trajectory> trajectories_init = reader.read_next_N_trajectories(buffer_trajectories_size);
+        std::vector<Trajectory> trajectories;
+        for (auto &&t : trajectories_init)
+        {
+            Trajectory tn(t);
+            tn.geom = UTIL::lower_sample_freq(t.geom, 15);
+            trajectories.push_back(tn);
+        }
+        std::cout << trajectories_init[2].geom << std::endl;
+        std::cout << trajectories[2].geom << std::endl;
         std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
         for (int i = 0; i < trajectories_fetched; ++i)
@@ -101,49 +110,17 @@ void ForceDirectedPP::match()
             force_directed_displacement(trajectory);
         }
         SPDLOG_INFO("FMM of displaced GPS points");
-        std::vector<MM::MatchResult> match_results = fmmw->match(trajectories);
+        std::vector<MM::MatchResult> mr_pp = fmmw->match(trajectories);
         SPDLOG_INFO("FMM of original trajectories");
-        std::vector<MM::MatchResult> match_results_fmm = fmmw->match(traces);
-        sort(match_results.begin(), match_results.end(), [](const MatchResult &r1, const MatchResult &r2)
+        std::vector<MM::MatchResult> mr_no_pp = fmmw->match(traces);
+        sort(mr_pp.begin(), mr_pp.end(), [](const MatchResult &r1, const MatchResult &r2)
              { return r1.id < r2.id; });
-        sort(match_results_fmm.begin(), match_results_fmm.end(), [](const MatchResult &r1, const MatchResult &r2)
+        sort(mr_no_pp.begin(), mr_no_pp.end(), [](const MatchResult &r1, const MatchResult &r2)
              { return r1.id < r2.id; });
-        SPDLOG_INFO("Calculating most accurate matches");
+
         double count_improved = 0.0;
-        std::vector<MM::MatchResult> final_results;
-        for (int i = 0; i < trajectories_fetched; i++)
-        {
-            double li, avgE, frechet, hausdorff;
-            double li_fmm, avgE_fmm, frechet_fmm, hausdorff_fmm;
-            GEOM::calc_accuracy(
-                GEOM::cart_to_degr_linestring(traces[i].geom),
-                GEOM::cart_to_degr_linestring(match_results_fmm[i].mgeom),
-                &li_fmm,
-                &avgE_fmm,
-                &frechet_fmm,
-                &hausdorff_fmm);
+        std::vector<MM::MatchResult> final_results = combine_fmm_fdpp_output(mr_pp, mr_no_pp, traces, &count_improved);
 
-            GEOM::calc_accuracy(
-                GEOM::cart_to_degr_linestring(traces[i].geom),
-                GEOM::cart_to_degr_linestring(match_results[i].mgeom),
-                &li,
-                &avgE,
-                &frechet,
-                &hausdorff);
-
-            if (frechet < frechet_fmm && hausdorff < hausdorff_fmm)
-            {
-                count_improved += 1.0;
-                final_results.push_back(match_results[i]);
-                std::cout << traces[i].geom << std::endl;
-                std::cout << match_results[i].mgeom << std::endl;
-                std::cout << match_results_fmm[i].mgeom << std::endl;
-            }
-            else
-            {
-                final_results.push_back(match_results_fmm[i]);
-            }
-        }
         SPDLOG_INFO("Calculating accuracy & flushing matches to output file");
 
         double li_total = 0.0;
@@ -182,14 +159,60 @@ void ForceDirectedPP::match()
                     hausdorff_total / trajectories_fetched);
         double improved_per = (count_improved / trajectories_fetched) * 100;
         SPDLOG_INFO("improved {}, total {}, percentage {}", count_improved, trajectories_fetched, improved_per);
+        SPDLOG_INFO("unmatched traces {}", count_unmatched);
     }
     SPDLOG_INFO("FDPP & FMM completed");
+}
+
+std::vector<MM::MatchResult> ForceDirectedPP::combine_fmm_fdpp_output(
+    const std::vector<MM::MatchResult> &mr_pp,
+    const std::vector<MM::MatchResult> &mr_no_pp,
+    const std::vector<Trajectory> &traces,
+    double *count_improved)
+{
+    SPDLOG_INFO("Calculating most accurate matches");
+    std::vector<MM::MatchResult> final_results;
+    int trajectories_fetched = traces.size();
+    for (int i = 0; i < trajectories_fetched; i++)
+    {
+        double li, avgE, frechet, hausdorff;
+        double li_fmm, avgE_fmm, frechet_fmm, hausdorff_fmm;
+        GEOM::calc_accuracy(
+            GEOM::cart_to_degr_linestring(traces[i].geom),
+            GEOM::cart_to_degr_linestring(mr_no_pp[i].mgeom),
+            &li_fmm,
+            &avgE_fmm,
+            &frechet_fmm,
+            &hausdorff_fmm);
+
+        GEOM::calc_accuracy(
+            GEOM::cart_to_degr_linestring(traces[i].geom),
+            GEOM::cart_to_degr_linestring(mr_pp[i].mgeom),
+            &li,
+            &avgE,
+            &frechet,
+            &hausdorff);
+
+        if (frechet < frechet_fmm && hausdorff < hausdorff_fmm)
+        {
+            *count_improved += 1.0;
+            final_results.push_back(mr_pp[i]);
+            // std::cout << traces[i].geom << std::endl;
+            // std::cout << mr_pp[i].mgeom << std::endl;
+            // std::cout << mr_no_pp[i].mgeom << std::endl;
+        }
+        else
+        {
+            final_results.push_back(mr_no_pp[i]);
+        }
+    }
+    return final_results;
 }
 
 void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
 {
     FDPP::IO::CSVIterationWriter iter_writer("iterations.csv");
-    LineString ls = trajectory.geom; // FDPP::UTIL::add_noise(trajectory.geom);
+    LineString ls = trajectory.geom;
     LineStringDeg ls_d = GEOM::cart_to_degr_linestring(ls);
 
     // number of iterations

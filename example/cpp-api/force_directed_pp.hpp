@@ -59,14 +59,86 @@ namespace FDPP
         std::unique_ptr<fmm_wrap> fmmw;
 
     public:
+        /**
+         * @brief Construct a new Force Directed P P object
+         * 
+         * @param shapeFile 
+         * @param tracesFile 
+         * @param ubodtFile 
+         * @param iterations_arg 
+         */
         ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile, int iterations_arg = 1);
         ~ForceDirectedPP();
+        /**
+         * @brief 
+         * 
+         * @param trajectory 
+         */
         void force_directed_displacement(Trajectory &trajectory);
+        /**
+         * @brief 
+         * 
+         */
         void match();
-        Point calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls);
+        /**
+         * @brief 
+         * 
+         * @param mr_pp 
+         * @param mr_no_pp 
+         * @param traces 
+         * @param count_improved 
+         * @return std::vector<MM::MatchResult> 
+         */
+        std::vector<MM::MatchResult> combine_fmm_fdpp_output(
+            const std::vector<MM::MatchResult> &mr_pp,
+            const std::vector<MM::MatchResult> &mr_no_pp,
+            const std::vector<Trajectory> &traces,
+            double *count_improved);
+        /**
+         * @brief 
+         * 
+         * @param point_i 
+         * @param candidates 
+         * @param trace_ls 
+         * @return Point 
+         */
+        Point calculate_net_force(
+            const int point_i, 
+            const FMM::MM::Traj_Candidates &candidates, 
+            const LineString &trace_ls);
+        /**
+         * @brief 
+         * 
+         * @param p1 
+         * @param p2 
+         * @param total_force 
+         * @return std::vector<double> 
+         */
         std::vector<double> calc_electric_force_displacement(const Point &p1, const Point &p2, const double total_force);
+        /**
+         * @brief 
+         * 
+         * @param p1 
+         * @param p2 
+         * @return std::vector<double> 
+         */
         std::vector<double> calc_attr_spring_force_displacement(const Point &p1, const Point &p2);
+        /**
+         * @brief 
+         * 
+         * @param p1 
+         * @param p2 
+         * @return std::vector<double> 
+         */
         std::vector<double> calc_rep_spring_force_displacement(const Point &p1, const Point &p2);
+        /**
+         * @brief 
+         * 
+         * @param ls_edge 
+         * @param p 
+         * @param dist 
+         * @param c_p 
+         */
         void calculate_closest_point(const LineString &ls_edge, const Point &p, double *dist, Point *c_p);
     };
 }
