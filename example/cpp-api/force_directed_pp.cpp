@@ -21,7 +21,6 @@ double ElectricForce::calculate(double cos_theta) const
     {
         force = c * sqrt(length_edge) * cos_theta / distance; //(distance * distance);
     }
-    // std::cout << force << std::endl;
     return force;
 };
 
@@ -34,7 +33,6 @@ double SpringForceAttr::calculate() const
         return 0.0;
     }
     return c1 * log(distance / c2);
-    // return c1 * (distance / c2);
 };
 
 SpringForceRep::SpringForceRep(double distance_arg, double c3_arg) : distance(distance_arg), c3(c3_arg){};
@@ -95,13 +93,8 @@ void ForceDirectedPP::match()
     {
         SPDLOG_INFO("Force directed displacement of buffered GPS points");
         std::vector<Trajectory> trajectories = reader.read_next_N_trajectories(buffer_trajectories_size);
-        std::vector<LineString> traces;
+        std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
-        for (int i = 0; i < trajectories_fetched; i++)
-        {
-            LineString tmp = trajectories[i].geom;
-            traces.push_back(tmp);
-        }
         for (int i = 0; i < trajectories_fetched; ++i)
         {
             Trajectory &trajectory = trajectories[i];
@@ -109,38 +102,86 @@ void ForceDirectedPP::match()
         }
         SPDLOG_INFO("FMM of displaced GPS points");
         std::vector<MM::MatchResult> match_results = fmmw->match(trajectories);
+        SPDLOG_INFO("FMM of original trajectories");
+        std::vector<MM::MatchResult> match_results_fmm = fmmw->match(traces);
         sort(match_results.begin(), match_results.end(), [](const MatchResult &r1, const MatchResult &r2)
              { return r1.id < r2.id; });
-        SPDLOG_INFO("Flushing matched trajectories");
-        double li_total = 0.0;
-        double avgE_total = 0.0;
-        double frechet_total = 0.0;
-        double hausdorff_total = 0.0;
+        sort(match_results_fmm.begin(), match_results_fmm.end(), [](const MatchResult &r1, const MatchResult &r2)
+             { return r1.id < r2.id; });
+        SPDLOG_INFO("Calculating most accurate matches");
+        double count_improved = 0.0;
+        std::vector<MM::MatchResult> final_results;
         for (int i = 0; i < trajectories_fetched; i++)
         {
-            Trajectory &trajectory = trajectories[i];
-            MatchResult &match_result = match_results[i];
-            writer.write_result(trajectory, match_result);
             double li, avgE, frechet, hausdorff;
+            double li_fmm, avgE_fmm, frechet_fmm, hausdorff_fmm;
             GEOM::calc_accuracy(
-                GEOM::cart_to_degr_linestring(traces[i]),
-                GEOM::cart_to_degr_linestring(match_result.mgeom),
+                GEOM::cart_to_degr_linestring(traces[i].geom),
+                GEOM::cart_to_degr_linestring(match_results_fmm[i].mgeom),
+                &li_fmm,
+                &avgE_fmm,
+                &frechet_fmm,
+                &hausdorff_fmm);
+
+            GEOM::calc_accuracy(
+                GEOM::cart_to_degr_linestring(traces[i].geom),
+                GEOM::cart_to_degr_linestring(match_results[i].mgeom),
                 &li,
                 &avgE,
                 &frechet,
                 &hausdorff);
 
+            if (frechet < frechet_fmm && hausdorff < hausdorff_fmm)
+            {
+                count_improved += 1.0;
+                final_results.push_back(match_results[i]);
+                std::cout << traces[i].geom << std::endl;
+                std::cout << match_results[i].mgeom << std::endl;
+                std::cout << match_results_fmm[i].mgeom << std::endl;
+            }
+            else
+            {
+                final_results.push_back(match_results_fmm[i]);
+            }
+        }
+        SPDLOG_INFO("Calculating accuracy & flushing matches to output file");
+
+        double li_total = 0.0;
+        double avgE_total = 0.0;
+        double frechet_total = 0.0;
+        double hausdorff_total = 0.0;
+        double count_unmatched = 0.0;
+        for (int i = 0; i < trajectories_fetched; i++)
+        {
+            Trajectory &trajectory = trajectories[i];
+            MatchResult &match_result = final_results[i];
+            writer.write_result(trajectory, match_result);
+            double li, avgE, frechet, hausdorff;
+            GEOM::calc_accuracy(
+                GEOM::cart_to_degr_linestring(traces[i].geom),
+                GEOM::cart_to_degr_linestring(match_result.mgeom),
+                &li,
+                &avgE,
+                &frechet,
+                &hausdorff);
+            if (li == INT_MAX)
+            {
+                count_unmatched += 1.0;
+                continue;
+            }
             li_total += li;
             avgE_total += avgE;
             frechet_total += frechet;
             hausdorff_total += hausdorff;
-            printf("%f ", li);
         }
+
         SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}",
                     li_total / trajectories_fetched,
                     avgE_total / trajectories_fetched,
                     frechet_total / trajectories_fetched,
                     hausdorff_total / trajectories_fetched);
+        double improved_per = (count_improved / trajectories_fetched) * 100;
+        SPDLOG_INFO("improved {}, total {}, percentage {}", count_improved, trajectories_fetched, improved_per);
     }
     SPDLOG_INFO("FDPP & FMM completed");
 }
@@ -189,29 +230,6 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
     double dy_s_attr = p1_delta[1] + p2_delta[1];
     double dz_s_attr = p1_delta[2] + p2_delta[2];
 
-    // double dx_s_attr = 0;
-    // double dy_s_attr = 0;
-    // double dz_s_attr = 0;
-
-    // calculate total repelling spring force displacement
-    double dx_s_rep = 0.0;
-    double dy_s_rep = 0.0;
-    double dz_s_rep = 0.0;
-    /*
-    for (int i = 0; i < trace_ls.get_num_points(); i++)
-    {
-        // Not an adjacent vertex
-        if (i != point_i - 1 && i != point_i && i != point_i + 1)
-        {
-            const Point non_adj_point = trace_ls.get_point(i);
-            std::vector<double> non_adj_delta = calc_rep_spring_force_displacement(p, non_adj_point);
-            dx_s_rep += non_adj_delta[0];
-            dy_s_rep += non_adj_delta[1];
-            dz_s_rep += non_adj_delta[2];
-        }
-    }
-    */
-
     // calculate total electric force
     double fe_total = 0.0;
     std::vector<FMM::MM::Candidate> candidates_point_i;
@@ -249,18 +267,18 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
 
         // Calculate replaced point
         std::vector<double> delta_res;
-        delta_res.push_back(p_cart[0] + dx_s_attr - dx_s_rep + dx_e);
-        delta_res.push_back(p_cart[1] + dy_s_attr - dy_s_rep + dy_e);
-        delta_res.push_back(p_cart[2] + dz_s_attr - dz_s_rep + dz_e);
+        delta_res.push_back(p_cart[0] + dx_s_attr + dx_e);
+        delta_res.push_back(p_cart[1] + dy_s_attr + dy_e);
+        delta_res.push_back(p_cart[2] + dz_s_attr + dz_e);
         Point p_res = GEOM::from_cart_cord(delta_res);
         return p_res;
     }
     else
     {
         std::vector<double> delta_res;
-        delta_res.push_back(p_cart[0] + dx_s_attr - dx_s_rep);
-        delta_res.push_back(p_cart[1] + dy_s_attr - dy_s_rep);
-        delta_res.push_back(p_cart[2] + dz_s_attr - dz_s_rep);
+        delta_res.push_back(p_cart[0] + dx_s_attr);
+        delta_res.push_back(p_cart[1] + dy_s_attr);
+        delta_res.push_back(p_cart[2] + dz_s_attr);
         Point p_res = GEOM::from_cart_cord(delta_res);
         return p_res;
     }
