@@ -76,17 +76,19 @@ void GEOM::calculate_closest_point(const LineString &ls_edge, const Point &p, do
 
 void GEOM::calc_accuracy(const LineStringDeg &trace, const LineStringDeg &match, double *li, double *avgA, double *frechet, double *hausdorff)
 {
-    if (bg::length(match) <= 0)
+    double length_match = bg::length(match, Haversine);
+    double length_trace = bg::length(trace, Haversine);
+    if (length_match == 0 || length_trace == 0)
     {
-        *frechet = INT_MAX;
-        *hausdorff = INT_MAX;
-        *li = INT_MAX;
-        *avgA = INT_MAX;
+        *frechet = 0.0;
+        *hausdorff = 0.0;
+        *li = 0.0;
+        *avgA = 0.0;
+        return;
     }
-
-    *frechet = bg::discrete_frechet_distance(trace, match);
-    *hausdorff = bg::discrete_hausdorff_distance(trace, match);
-    *li = bg::length(match) / bg::length(trace);
+    *frechet = bg::discrete_frechet_distance(match, trace, Haversine);
+    *hausdorff = bg::discrete_hausdorff_distance(match, trace, Haversine);
+    *li = length_match / length_trace;
     *avgA = GEOM::calc_avg_error(trace, match);
 }
 

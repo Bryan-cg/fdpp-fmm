@@ -97,11 +97,10 @@ void ForceDirectedPP::match()
         for (auto &&t : trajectories_init)
         {
             Trajectory tn(t);
-            tn.geom = UTIL::lower_sample_freq(t.geom, 15);
+            //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
+            tn.geom = UTIL::add_noise(tn.geom);
             trajectories.push_back(tn);
         }
-        std::cout << trajectories_init[2].geom << std::endl;
-        std::cout << trajectories[2].geom << std::endl;
         std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
         for (int i = 0; i < trajectories_fetched; ++i)
@@ -141,7 +140,7 @@ void ForceDirectedPP::match()
                 &avgE,
                 &frechet,
                 &hausdorff);
-            if (li == INT_MAX)
+            if (li == 0.0)
             {
                 count_unmatched += 1.0;
                 continue;
@@ -151,14 +150,13 @@ void ForceDirectedPP::match()
             frechet_total += frechet;
             hausdorff_total += hausdorff;
         }
-
-        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}",
-                    li_total / trajectories_fetched,
-                    avgE_total / trajectories_fetched,
-                    frechet_total / trajectories_fetched,
-                    hausdorff_total / trajectories_fetched);
-        double improved_per = (count_improved / trajectories_fetched) * 100;
-        SPDLOG_INFO("improved {}, total {}, percentage {}", count_improved, trajectories_fetched, improved_per);
+        li_total /= trajectories_fetched;
+        avgE_total /= trajectories_fetched;
+        frechet_total /= trajectories_fetched;
+        hausdorff_total /= trajectories_fetched;
+        double improved_per = (count_improved / (trajectories_fetched - count_unmatched)) * 100;
+        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}", li_total, avgE_total, frechet_total, hausdorff_total);
+        SPDLOG_INFO("improved {}, total {} ==> {}%", count_improved, (trajectories_fetched - count_unmatched), improved_per);
         SPDLOG_INFO("unmatched traces {}", count_unmatched);
     }
     SPDLOG_INFO("FDPP & FMM completed");
@@ -197,9 +195,11 @@ std::vector<MM::MatchResult> ForceDirectedPP::combine_fmm_fdpp_output(
         {
             *count_improved += 1.0;
             final_results.push_back(mr_pp[i]);
+            // printf("---------\n\n");
             // std::cout << traces[i].geom << std::endl;
             // std::cout << mr_pp[i].mgeom << std::endl;
             // std::cout << mr_no_pp[i].mgeom << std::endl;
+            // printf("\n");
         }
         else
         {

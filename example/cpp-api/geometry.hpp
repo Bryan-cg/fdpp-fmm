@@ -11,7 +11,7 @@ namespace bg = boost::geometry;
 #define Haversine bg::strategy::distance::haversine<double>(EARTH_R)
 
 typedef bg::model::point<double, 2, bg::cs::geographic<bg::degree>> PointDeg;
-typedef boost::geometry::model::linestring<PointDeg> LineStringDeg;
+typedef bg::model::linestring<PointDeg> LineStringDeg;
 
 namespace GEOM
 {

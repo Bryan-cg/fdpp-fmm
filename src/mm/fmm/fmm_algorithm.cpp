@@ -280,7 +280,7 @@ std::vector<MatchResult> FastMapMatch::match_trajectories(
       int points_in_tr = trajectory.geom.get_num_points();
       MM::MatchResult result = match_traj(trajectory, fmm_config);
       if(result.cpath.empty()) {
-        SPDLOG_INFO("HMM state transistion failed, using fallback STM for maching");
+        SPDLOG_WARN("HMM state transistion failed, using fallback STM for matching");
         result = stmMatch_.match_traj(trajectory, stmConfig_);
       }
       #pragma omp critical
@@ -319,11 +319,12 @@ std::vector<MatchResult> FastMapMatch::match_trajectories(
   auto end_time = UTIL::get_current_time();
   double duration = UTIL::get_duration(begin_time,end_time);
   oss<<"Status: success\n";
+  oss<<"Summary:\n";
   oss<<"Time takes " << duration << " seconds\n";
   oss<<"Total points " << total_points << " matched "<< points_matched <<"\n";
   oss<<"Total trajectories " << total_trajs << " matched " << traj_matched <<"\n";
   oss<<"Map match percentage " << points_matched / (double) total_points <<"\n";
-  oss<<"Map match speed " << points_matched / duration << " points/s \n";
+  oss<<"Map match speed " << points_matched / duration << " points/s";
   SPDLOG_INFO("{}", oss.str());
   return match_results;
 };
