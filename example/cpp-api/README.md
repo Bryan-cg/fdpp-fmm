@@ -23,7 +23,7 @@ sudo make install
 Run it with
 
 ```
-fmm_print_network example/data/edges.shp
+./fmm_wrap example/data/edges.shp
 ```
 
 You should see output like
