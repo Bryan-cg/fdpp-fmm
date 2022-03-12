@@ -88,7 +88,6 @@ void ForceDirectedPP::match() {
             tn.geom = UTIL::add_noise(tn.geom);
             tn.geom = UTIL::add_noise(tn.geom);
             trajectories.push_back(tn);
-            std::cout << tn.geom << std::endl;
         }
         std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
@@ -182,6 +181,10 @@ std::vector<MM::MatchResult> ForceDirectedPP::combine_fmm_fdpp_output(
         if (frechet < frechet_fmm && hausdorff < hausdorff_fmm) {
             *count_improved += 1.0;
             final_results.push_back(mr_pp[i]);
+//            std::cout<<traces[i].geom<<std::endl;
+//            std::cout<<mr_pp[i].mgeom<<std::endl;
+//            std::cout<<mr_no_pp[i].mgeom<<std::endl;
+//            std::cout<<std::endl;
         } else {
             final_results.push_back(mr_no_pp[i]);
         }
