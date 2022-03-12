@@ -1,5 +1,6 @@
 #include <fmm/fmm-api.hpp>
 #include <iostream>
+
 using namespace FMM;
 using namespace FMM::CORE;
 namespace bg = boost::geometry;
@@ -13,16 +14,27 @@ namespace bg = boost::geometry;
 typedef bg::model::point<double, 2, bg::cs::geographic<bg::degree>> PointDeg;
 typedef bg::model::linestring<PointDeg> LineStringDeg;
 
-namespace GEOM
-{
+namespace GEOM {
     LineString point_to_lineString(const Point &p);
+
     std::vector<double> to_cart_cord(const Point &p);
+
     Point from_cart_cord(const std::vector<double> &coord);
+
     double interpolated_distance_lineString(const LineString &ls);
+
     double haversine_distance_m(const Point &p1, const Point &p2);
+
     LineStringDeg cart_to_degr_linestring(const LineString &ls);
-    double calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace);
+
+    double
+    calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace);
+
     void calculate_closest_point(const LineString &ls_edge, const Point &p, double *dist, Point *c_p);
-    void calc_accuracy(const LineStringDeg &trace, const LineStringDeg &match, double *li, double *avgA, double *frechet, double *hausdorff);
+
+    void
+    calc_accuracy(const LineStringDeg &trace, const LineStringDeg &match, double *li, double *avgA, double *frechet,
+                  double *hausdorff);
+
     double calc_avg_error(const LineStringDeg &trace, const LineStringDeg &match);
 }

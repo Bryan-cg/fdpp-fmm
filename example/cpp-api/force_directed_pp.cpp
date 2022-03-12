@@ -3,51 +3,43 @@
 using namespace FDPP;
 using namespace FDPP::FORCE;
 
-ElectricForce::ElectricForce(double length_edge_arg, double distance_arg, double c_arg) : length_edge(length_edge_arg), distance(distance_arg),
-                                                                                          c(c_arg){};
+ElectricForce::ElectricForce(double length_edge_arg, double distance_arg, double c_arg) : length_edge(length_edge_arg),
+                                                                                          distance(distance_arg),
+                                                                                          c(c_arg) {};
 
-double ElectricForce::calculate(double cos_theta) const
-{
+double ElectricForce::calculate(double cos_theta) const {
     double force;
-    if (cos_theta < 0)
-    {
+    if (cos_theta < 0) {
         cos_theta = cos_theta / 2;
     }
-    if (distance <= 0.000)
-    {
+    if (distance <= 0.000) {
         force = c * sqrt(length_edge) * cos_theta;
-    }
-    else
-    {
+    } else {
         force = c * sqrt(length_edge) * cos_theta / distance;
     }
     return force;
 };
 
-SpringForceAttr::SpringForceAttr(double distance_arg, double c1_arg, double c2_arg) : distance(distance_arg), c1(c1_arg), c2(c2_arg){};
+SpringForceAttr::SpringForceAttr(double distance_arg, double c1_arg, double c2_arg) : distance(distance_arg),
+                                                                                      c1(c1_arg), c2(c2_arg) {};
 
-double SpringForceAttr::calculate() const
-{
-    if (distance <= 0.000)
-    {
+double SpringForceAttr::calculate() const {
+    if (distance <= 0.000) {
         return 0.0;
     }
     return c1 * log(distance / c2);
 };
 
-SpringForceRep::SpringForceRep(double distance_arg, double c3_arg) : distance(distance_arg), c3(c3_arg){};
+SpringForceRep::SpringForceRep(double distance_arg, double c3_arg) : distance(distance_arg), c3(c3_arg) {};
 
-double SpringForceRep::calculate() const
-{
-    if (distance <= 0.000)
-    {
+double SpringForceRep::calculate() const {
+    if (distance <= 0.000) {
         return 0.0;
     }
     return c3 / (distance * distance * distance);
 };
 
-ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile, int iterations_arg)
-{
+ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtFile, int iterations_arg) {
     std::string shapeFile_str(shapeFile);
     std::string tracesFile_str(tracesFile);
 
@@ -71,40 +63,35 @@ ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtF
     fmmw = std::unique_ptr<fmm_wrap>(new fmm_wrap(ubodtFile, *network, *networkGraph));
 }
 
-ForceDirectedPP::~ForceDirectedPP()
-{
+ForceDirectedPP::~ForceDirectedPP() {
     delete network;
     delete networkGraph;
     delete gps_config;
     delete result_config;
 }
 
-void ForceDirectedPP::match()
-{
-    if (!result_config->validate())
-    {
+void ForceDirectedPP::match() {
+    if (!result_config->validate()) {
         SPDLOG_CRITICAL("result_config invalid");
         return;
     }
     FMM::IO::GPSReader reader(*gps_config);
     FMM::IO::CSVMatchResultWriter writer(result_config->file, result_config->output_config);
     int buffer_trajectories_size = 100000;
-    while (reader.has_next_trajectory())
-    {
+    while (reader.has_next_trajectory()) {
         SPDLOG_INFO("Force directed displacement of buffered GPS points");
         std::vector<Trajectory> trajectories_init = reader.read_next_N_trajectories(buffer_trajectories_size);
         std::vector<Trajectory> trajectories;
-        for (auto &&t : trajectories_init)
-        {
+        for (auto &&t: trajectories_init) {
             Trajectory tn(t);
             //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
-            tn.geom = UTIL::add_noise(tn.geom);
+            //tn.geom = UTIL::add_noise(tn.geom);
             trajectories.push_back(tn);
+            //std::cout<<tn.geom<<std::endl;
         }
         std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
-        for (int i = 0; i < trajectories_fetched; ++i)
-        {
+        for (int i = 0; i < trajectories_fetched; ++i) {
             Trajectory &trajectory = trajectories[i];
             force_directed_displacement(trajectory);
         }
@@ -112,10 +99,10 @@ void ForceDirectedPP::match()
         std::vector<MM::MatchResult> mr_pp = fmmw->match(trajectories);
         SPDLOG_INFO("FMM of original trajectories");
         std::vector<MM::MatchResult> mr_no_pp = fmmw->match(traces);
-        sort(mr_pp.begin(), mr_pp.end(), [](const MatchResult &r1, const MatchResult &r2)
-             { return r1.id < r2.id; });
-        sort(mr_no_pp.begin(), mr_no_pp.end(), [](const MatchResult &r1, const MatchResult &r2)
-             { return r1.id < r2.id; });
+        sort(mr_pp.begin(), mr_pp.end(),
+             [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
+        sort(mr_no_pp.begin(), mr_no_pp.end(),
+             [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
 
         double count_improved = 0.0;
         std::vector<MM::MatchResult> final_results = combine_fmm_fdpp_output(mr_pp, mr_no_pp, traces, &count_improved);
@@ -127,21 +114,19 @@ void ForceDirectedPP::match()
         double frechet_total = 0.0;
         double hausdorff_total = 0.0;
         double count_unmatched = 0.0;
-        for (int i = 0; i < trajectories_fetched; i++)
-        {
-            Trajectory &trajectory = trajectories[i];
+        for (int i = 0; i < trajectories_fetched; i++) {
+            Trajectory &trajectory = traces[i];
             MatchResult &match_result = final_results[i];
             writer.write_result(trajectory, match_result);
             double li, avgE, frechet, hausdorff;
             GEOM::calc_accuracy(
-                GEOM::cart_to_degr_linestring(traces[i].geom),
-                GEOM::cart_to_degr_linestring(match_result.mgeom),
-                &li,
-                &avgE,
-                &frechet,
-                &hausdorff);
-            if (li == 0.0)
-            {
+                    GEOM::cart_to_degr_linestring(traces[i].geom),
+                    GEOM::cart_to_degr_linestring(match_result.mgeom),
+                    &li,
+                    &avgE,
+                    &frechet,
+                    &hausdorff);
+            if (li == 0.0) {
                 count_unmatched += 1.0;
                 continue;
             }
@@ -155,72 +140,68 @@ void ForceDirectedPP::match()
         frechet_total /= trajectories_fetched;
         hausdorff_total /= trajectories_fetched;
         double improved_per = (count_improved / (trajectories_fetched - count_unmatched)) * 100;
-        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}", li_total, avgE_total, frechet_total, hausdorff_total);
-        SPDLOG_INFO("improved {}, total {} ==> {}%", count_improved, (trajectories_fetched - count_unmatched), improved_per);
+        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}", li_total, avgE_total, frechet_total,
+                    hausdorff_total);
+        SPDLOG_INFO("improved {}, total {} ==> {}%", count_improved, (trajectories_fetched - count_unmatched),
+                    improved_per);
         SPDLOG_INFO("unmatched traces {}", count_unmatched);
     }
     SPDLOG_INFO("FDPP & FMM completed");
 }
 
 std::vector<MM::MatchResult> ForceDirectedPP::combine_fmm_fdpp_output(
-    const std::vector<MM::MatchResult> &mr_pp,
-    const std::vector<MM::MatchResult> &mr_no_pp,
-    const std::vector<Trajectory> &traces,
-    double *count_improved)
-{
+        const std::vector<MM::MatchResult> &mr_pp,
+        const std::vector<MM::MatchResult> &mr_no_pp,
+        const std::vector<Trajectory> &traces,
+        double *count_improved) {
     SPDLOG_INFO("Calculating most accurate matches");
     std::vector<MM::MatchResult> final_results;
     int trajectories_fetched = traces.size();
-    for (int i = 0; i < trajectories_fetched; i++)
-    {
+    for (int i = 0; i < trajectories_fetched; i++) {
         double li, avgE, frechet, hausdorff;
         double li_fmm, avgE_fmm, frechet_fmm, hausdorff_fmm;
         GEOM::calc_accuracy(
-            GEOM::cart_to_degr_linestring(traces[i].geom),
-            GEOM::cart_to_degr_linestring(mr_no_pp[i].mgeom),
-            &li_fmm,
-            &avgE_fmm,
-            &frechet_fmm,
-            &hausdorff_fmm);
+                GEOM::cart_to_degr_linestring(traces[i].geom),
+                GEOM::cart_to_degr_linestring(mr_no_pp[i].mgeom),
+                &li_fmm,
+                &avgE_fmm,
+                &frechet_fmm,
+                &hausdorff_fmm);
 
         GEOM::calc_accuracy(
-            GEOM::cart_to_degr_linestring(traces[i].geom),
-            GEOM::cart_to_degr_linestring(mr_pp[i].mgeom),
-            &li,
-            &avgE,
-            &frechet,
-            &hausdorff);
+                GEOM::cart_to_degr_linestring(traces[i].geom),
+                GEOM::cart_to_degr_linestring(mr_pp[i].mgeom),
+                &li,
+                &avgE,
+                &frechet,
+                &hausdorff);
 
-        if (frechet < frechet_fmm && hausdorff < hausdorff_fmm)
-        {
+        if (frechet < frechet_fmm && hausdorff < hausdorff_fmm) {
             *count_improved += 1.0;
             final_results.push_back(mr_pp[i]);
-            // printf("---------\n\n");
-            // std::cout << traces[i].geom << std::endl;
-            // std::cout << mr_pp[i].mgeom << std::endl;
-            // std::cout << mr_no_pp[i].mgeom << std::endl;
-            // printf("\n");
-        }
-        else
-        {
+//            printf("%d---------\n\n", i + 1);
+//            std::cout << bg::length(GEOM::cart_to_degr_linestring(traces[i].geom), Haversine) << std::endl;
+//            std::cout << bg::length(GEOM::cart_to_degr_linestring(mr_no_pp[i].mgeom), Haversine) << std::endl;
+//            std::cout << traces[i].geom << std::endl;
+//            std::cout << mr_pp[i].mgeom << std::endl;
+//             std::cout << mr_no_pp[i].mgeom << std::endl;
+//            printf("\n");
+        } else {
             final_results.push_back(mr_no_pp[i]);
         }
     }
     return final_results;
 }
 
-void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
-{
+void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory) {
     FDPP::IO::CSVIterationWriter iter_writer("iterations.csv");
     LineString ls = trajectory.geom;
     LineStringDeg ls_d = GEOM::cart_to_degr_linestring(ls);
 
     // number of iterations
-    for (int i = 0; i < _iterations_fdpp; i++)
-    {
-        // Problem, only one direction for each edge in stead of two?
-        for (int j = 1; j < ls.get_num_points() - 1; j++)
-        {
+    for (int i = 0; i < _iterations_fdpp; i++) {
+        // Problem, only one direction for each edge instead of two?
+        for (int j = 1; j < ls.get_num_points() - 1; j++) {
             Point p = ls.get_point(j);
             LineString ls_point = GEOM::point_to_lineString(p);
 
@@ -239,8 +220,8 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory)
     // std::cout << ls << std::endl;
 }
 
-Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates, const LineString &trace_ls)
-{
+Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Traj_Candidates &candidates,
+                                           const LineString &trace_ls) {
     const Point p = trace_ls.get_point(point_i);
     const Point p_prev = trace_ls.get_point(point_i - 1);
     const Point p_next = trace_ls.get_point(point_i + 1);
@@ -256,12 +237,10 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
     // calculate total electric force
     double fe_total = 0.0;
     std::vector<FMM::MM::Candidate> candidates_point_i;
-    if (candidates.size() > 0)
-    {
+    if (!candidates.empty()) {
         candidates_point_i = candidates[0];
         std::vector<Point> force_directions;
-        for (FMM::MM::Candidate j : candidates_point_i)
-        {
+        for (FMM::MM::Candidate j: candidates_point_i) {
             LineString edge_lst = j.edge->geom;
             LineStringDeg lsdg = GEOM::cart_to_degr_linestring(edge_lst);
             Point p1_edge = edge_lst.get_point(0);
@@ -280,8 +259,7 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
         double dx_e = 0.0;
         double dy_e = 0.0;
         double dz_e = 0.0;
-        for (Point p_dir : force_directions)
-        {
+        for (Point p_dir: force_directions) {
             std::vector<double> delta = calc_electric_force_displacement(p, p_dir, fe_total);
             dx_e += delta[0];
             dy_e += delta[1];
@@ -295,9 +273,7 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
         delta_res.push_back(p_cart[2] + dz_s_attr + dz_e);
         Point p_res = GEOM::from_cart_cord(delta_res);
         return p_res;
-    }
-    else
-    {
+    } else {
         std::vector<double> delta_res;
         delta_res.push_back(p_cart[0] + dx_s_attr);
         delta_res.push_back(p_cart[1] + dy_s_attr);
@@ -307,15 +283,13 @@ Point ForceDirectedPP::calculate_net_force(const int point_i, const FMM::MM::Tra
     }
 }
 
-std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const Point &p1, const Point &p2)
-{
+std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const Point &p1, const Point &p2) {
     std::vector<double> p1_cart = GEOM::to_cart_cord(p1);
     std::vector<double> p2_cart = GEOM::to_cart_cord(p2);
 
     double distance = GEOM::haversine_distance_m(p1, p2);
     // Duplicated point
-    if (distance <= 0.000)
-    {
+    if (distance <= 0.000) {
         std::vector<double> p_res_cart;
         p_res_cart.push_back(0);
         p_res_cart.push_back(0);
@@ -344,8 +318,7 @@ std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const P
     double dx_x = 0.2 * (fx / force_dist * limitedDist);
     double dy_y = 0.2 * (fy / force_dist * limitedDist);
     double dz_z = 0.2 * (fz / force_dist * limitedDist);
-    if (isnan(dx_x) || isnan(dy_y) || isnan(dz_z))
-    {
+    if (isnan(dx_x) || isnan(dy_y) || isnan(dz_z)) {
         std::vector<double> p_res_cart;
         p_res_cart.push_back(0);
         p_res_cart.push_back(0);
@@ -359,15 +332,13 @@ std::vector<double> ForceDirectedPP::calc_attr_spring_force_displacement(const P
     return p_res_cart;
 }
 
-std::vector<double> ForceDirectedPP::calc_rep_spring_force_displacement(const Point &p1, const Point &p2)
-{
+std::vector<double> ForceDirectedPP::calc_rep_spring_force_displacement(const Point &p1, const Point &p2) {
     std::vector<double> p1_cart = GEOM::to_cart_cord(p1);
     std::vector<double> p2_cart = GEOM::to_cart_cord(p2);
 
     double distance = GEOM::haversine_distance_m(p1, p2);
     // Duplicated point
-    if (distance <= 0.000)
-    {
+    if (distance <= 0.000) {
         std::vector<double> p_res_cart;
         p_res_cart.push_back(0);
         p_res_cart.push_back(0);
@@ -402,14 +373,13 @@ std::vector<double> ForceDirectedPP::calc_rep_spring_force_displacement(const Po
     return p_res_cart;
 }
 
-std::vector<double> ForceDirectedPP::calc_electric_force_displacement(const Point &p1, const Point &p2, const double total_force)
-{
+std::vector<double>
+ForceDirectedPP::calc_electric_force_displacement(const Point &p1, const Point &p2, const double total_force) {
     std::vector<double> p1_cart = GEOM::to_cart_cord(p1);
     std::vector<double> p2_cart = GEOM::to_cart_cord(p2);
     double distance = GEOM::haversine_distance_m(p1, p2);
     // Duplicated point
-    if (distance <= 0.000)
-    {
+    if (distance <= 0.000) {
         std::vector<double> p_res_cart;
         p_res_cart.push_back(0);
         p_res_cart.push_back(0);
@@ -422,17 +392,14 @@ std::vector<double> ForceDirectedPP::calc_electric_force_displacement(const Poin
     double fx = total_force * (dx / distance);
     double fy = total_force * (dy / distance);
     double fz = total_force * (dz / distance);
-    if (total_force < 0)
-    {
+    if (total_force < 0) {
         if (p2_cart[0] > p1_cart[0])
             fx = -fx;
         if (p2_cart[1] > p1_cart[1])
             fy = -fy;
         if (p2_cart[2] > p1_cart[2])
             fz = -fz;
-    }
-    else
-    {
+    } else {
         if (p2_cart[0] < p1_cart[0])
             fx = -fx;
         if (p2_cart[1] < p1_cart[1])

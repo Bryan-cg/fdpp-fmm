@@ -1,7 +1,6 @@
 #include "fmm_wrap.hpp"
 
-fmm_wrap::fmm_wrap(char *ubodtFile, const Network &network, const NetworkGraph &networkGraph)
-{
+fmm_wrap::fmm_wrap(char *ubodtFile, const Network &network, const NetworkGraph &networkGraph) {
     std::string ubodtFile_str(ubodtFile);
 
     SPDLOG_INFO("Reading UBODT file");
@@ -14,23 +13,19 @@ fmm_wrap::fmm_wrap(char *ubodtFile, const Network &network, const NetworkGraph &
     SPDLOG_INFO("FMM succesfully initialized");
 }
 
-fmm_wrap::~fmm_wrap()
-{
+fmm_wrap::~fmm_wrap() {
     delete fmm;
     delete fmm_config;
 }
 
-std::vector<MM::MatchResult> fmm_wrap::match(std::vector<FMM::CORE::Trajectory> &trajectories)
-{
-    if (!fmm_config->validate())
-    {
+std::vector<MM::MatchResult> fmm_wrap::match(std::vector<FMM::CORE::Trajectory> &trajectories) {
+    if (!fmm_config->validate()) {
         SPDLOG_CRITICAL("fmm_config invalid - abort matching");
         return {};
     }
     return fmm->match_trajectories(trajectories, *fmm_config, true);
 }
 
-void fmm_wrap::matchAllSTM()
-{
+void fmm_wrap::matchAllSTM() {
     // SPDLOG_INFO("{}", stm->match_gps_file(*gpsConfig, *resultConfig, *stm_config, true));
 }

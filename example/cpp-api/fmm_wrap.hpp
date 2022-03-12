@@ -5,14 +5,14 @@
 #include <fmm/mm/stmatch/stmatch_algorithm.hpp>
 
 #include <iostream>
+
 using namespace FMM;
 using namespace FMM::NETWORK;
 using namespace FMM::CORE;
 using namespace FMM::MM;
 using namespace FMM::CONFIG;
 
-class fmm_wrap
-{
+class fmm_wrap {
 private:
     // ubodt precomutation for FMM
     std::shared_ptr<UBODT> ubodt;
@@ -25,7 +25,10 @@ private:
 
 public:
     fmm_wrap(char *ubodtFile, const Network &network, const NetworkGraph &networkGraph);
+
     ~fmm_wrap();
+
     void matchAllSTM();
+
     std::vector<MM::MatchResult> match(std::vector<FMM::CORE::Trajectory> &trajectories);
 };

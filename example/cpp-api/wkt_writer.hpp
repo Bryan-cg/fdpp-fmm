@@ -7,17 +7,14 @@
 
 using namespace FMM::CORE;
 
-namespace FDPP
-{
+namespace FDPP {
 
-    namespace IO
-    {
+    namespace IO {
 
         /**
          * An interface defined for writing the map match result
          */
-        class IterationWriter
-        {
+        class IterationWriter {
         public:
             /**
              * Write the match result to a file
@@ -29,8 +26,7 @@ namespace FDPP
         /**
          * A writer class for writing matche result to a CSV file.
          */
-        class CSVIterationWriter : public IterationWriter
-        {
+        class CSVIterationWriter : public IterationWriter {
         public:
             /**
              * Constructor
@@ -38,16 +34,18 @@ namespace FDPP
              * @param result_file the filename to write result
              *
              */
-            CSVIterationWriter(const std::string &result_file);
+            explicit CSVIterationWriter(const std::string &result_file);
+
             /**
              * Write a header line for the fields exported
              */
             void write_header();
+
             /**
              * Write wkt linestring
              * @param ls Input trajectory wkt
              */
-            void write_result(const int iteration, FMM::CORE::LineString &ls);
+            void write_result(const int iteration, FMM::CORE::LineString &ls) override;
             /**
              * Write a header line for the fields exported
              */

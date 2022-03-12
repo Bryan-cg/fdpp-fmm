@@ -1,9 +1,7 @@
 #include "geometry.hpp"
 
-namespace FDPP
-{
-    namespace UTIL
-    {
+namespace FDPP {
+    namespace UTIL {
         /**
          * @brief add random noise to linestring
          * 
@@ -11,6 +9,7 @@ namespace FDPP
          * @return LineString with noise
          */
         LineString add_noise(const LineString &ls);
+
         /**
          * @brief delete certain number of points between to mimick lower sampling rate
          * 
