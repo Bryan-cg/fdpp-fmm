@@ -68,7 +68,7 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-add_executable(fmm_wrapper main.cpp fmm_wrap.cpp geometry.cpp wkt_writer.cpp util.cpp force_directed_pp.cpp statistics_writer.cpp statistics_writer.h)
+add_executable(fmm_wrapper main.cpp fmm_wrap.cpp geometry.cpp wkt_writer.cpp util.cpp force_directed_pp.cpp statistics_writer.cpp)
 target_link_libraries(fmm_wrapper
   ${FMM_LIBRARY} ${GDAL_LIBRARIES} ${Boost_LIBRARIES}
   ${OpenMP_CXX_LIBRARIES})

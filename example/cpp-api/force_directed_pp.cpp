@@ -85,7 +85,7 @@ void ForceDirectedPP::match() {
         for (auto &&t: trajectories_init) {
             Trajectory tn(t);
             //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
-            //tn.geom = UTIL::add_noise(tn.geom);
+            //tn.geom = UTIL::add_noise(tn.geom); //bug
             trajectories.push_back(tn);
             //std::cout<<tn.geom<<std::endl;
         }
@@ -108,7 +108,7 @@ void ForceDirectedPP::match() {
         std::vector<MM::MatchResult> final_results = combine_fmm_fdpp_output(mr_pp, mr_no_pp, traces, &count_improved);
 
         SPDLOG_INFO("Calculating accuracy & flushing matches to output file");
-
+        FDPP::IO::StatsWriter stats_writer("stats.csv");
         double li_total = 0.0;
         double avgE_total = 0.0;
         double frechet_total = 0.0;
@@ -130,6 +130,8 @@ void ForceDirectedPP::match() {
                 count_unmatched += 1.0;
                 continue;
             }
+            stats_writer.write_result(i + 1, bg::length(GEOM::cart_to_degr_linestring(traces[i].geom), Haversine), li,
+                                      avgE, hausdorff, frechet);
             li_total += li;
             avgE_total += avgE;
             frechet_total += frechet;
@@ -179,13 +181,6 @@ std::vector<MM::MatchResult> ForceDirectedPP::combine_fmm_fdpp_output(
         if (frechet < frechet_fmm && hausdorff < hausdorff_fmm) {
             *count_improved += 1.0;
             final_results.push_back(mr_pp[i]);
-//            printf("%d---------\n\n", i + 1);
-//            std::cout << bg::length(GEOM::cart_to_degr_linestring(traces[i].geom), Haversine) << std::endl;
-//            std::cout << bg::length(GEOM::cart_to_degr_linestring(mr_no_pp[i].mgeom), Haversine) << std::endl;
-//            std::cout << traces[i].geom << std::endl;
-//            std::cout << mr_pp[i].mgeom << std::endl;
-//             std::cout << mr_no_pp[i].mgeom << std::endl;
-//            printf("\n");
         } else {
             final_results.push_back(mr_no_pp[i]);
         }
@@ -198,7 +193,6 @@ void ForceDirectedPP::force_directed_displacement(Trajectory &trajectory) {
     LineString ls = trajectory.geom;
     LineStringDeg ls_d = GEOM::cart_to_degr_linestring(ls);
 
-    // number of iterations
     for (int i = 0; i < _iterations_fdpp; i++) {
         // Problem, only one direction for each edge instead of two?
         for (int j = 1; j < ls.get_num_points() - 1; j++) {

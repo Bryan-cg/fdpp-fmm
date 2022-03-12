@@ -35,6 +35,6 @@ namespace FDPP {
         private:
             std::ofstream m_fstream;
         };
-    };
+    }
 }
-}
+

@@ -2,7 +2,7 @@
 // Created by coulier on 12/03/2022.
 //
 
-#include "statistics_writer.h"
+#include "statistics_writer.hpp"
 
 
 FDPP::IO::StatsWriter::StatsWriter(const std::string &result_file) : m_fstream(result_file) {

@@ -2,6 +2,7 @@
 #include "fmm_wrap.hpp"
 #include "geometry.hpp"
 #include "wkt_writer.hpp"
+#include "statistics_writer.hpp"
 #include "util.hpp"
 #include <iostream>
 #include <cmath>
