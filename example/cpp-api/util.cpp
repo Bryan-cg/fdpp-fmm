@@ -1,5 +1,8 @@
 #include "util.hpp"
 
+constexpr int MIN = 0;
+constexpr int MAX = 5;
+
 LineString FDPP::UTIL::add_noise(const LineString &ls) {
     LineString result;
     int N = ls.get_num_points();
@@ -8,9 +11,12 @@ LineString FDPP::UTIL::add_noise(const LineString &ls) {
         std::vector<double> p_res_cart = GEOM::to_cart_cord(p_res);
 
         // Displacement between 0 & 10m
-        const int dx = rand() % 10;
-        const int dy = rand() % 10;
-        const int dz = rand() % 10;
+        std::random_device rd;
+        std::default_random_engine eng(rd());
+        std::uniform_real_distribution<double> distribution(MIN, MAX);
+        const double dx = distribution(eng);
+        const double dy = distribution(eng);
+        const double dz = distribution(eng);
 
         p_res_cart[0] += dx;
         p_res_cart[1] += dy;

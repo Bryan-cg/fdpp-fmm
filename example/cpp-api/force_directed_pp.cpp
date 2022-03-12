@@ -85,9 +85,10 @@ void ForceDirectedPP::match() {
         for (auto &&t: trajectories_init) {
             Trajectory tn(t);
             //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
-            //tn.geom = UTIL::add_noise(tn.geom); //bug
+            tn.geom = UTIL::add_noise(tn.geom);
+            tn.geom = UTIL::add_noise(tn.geom);
             trajectories.push_back(tn);
-            //std::cout<<tn.geom<<std::endl;
+            std::cout << tn.geom << std::endl;
         }
         std::vector<Trajectory> traces = trajectories;
         int trajectories_fetched = trajectories.size();
