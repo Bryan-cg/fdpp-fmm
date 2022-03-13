@@ -68,9 +68,14 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-add_executable(fmm_wrapper main.cpp fmm_wrap.cpp geometry.cpp wkt_writer.cpp util.cpp force_directed_pp.cpp statistics_writer.cpp)
+add_executable(fmm_wrapper main_fdpp.cpp fmm_wrap.cpp util/geometry.cpp util/wkt_writer.cpp util/util.cpp force_directed_pp.cpp)
+add_executable(accuracy util/geometry.cpp util/statistics_writer.cpp main_stats.cpp)
 target_link_libraries(fmm_wrapper
   ${FMM_LIBRARY} ${GDAL_LIBRARIES} ${Boost_LIBRARIES}
   ${OpenMP_CXX_LIBRARIES})
+target_link_libraries(accuracy
+        ${FMM_LIBRARY} ${GDAL_LIBRARIES} ${Boost_LIBRARIES}
+        ${OpenMP_CXX_LIBRARIES})
 
 install(TARGETS fmm_wrapper DESTINATION bin)
+install(TARGETS accuracy DESTINATION bin)

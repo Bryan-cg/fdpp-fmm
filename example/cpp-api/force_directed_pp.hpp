@@ -1,9 +1,9 @@
 #include <fmm/fmm-api.hpp>
 #include "fmm_wrap.hpp"
-#include "geometry.hpp"
-#include "wkt_writer.hpp"
-#include "statistics_writer.hpp"
-#include "util.hpp"
+#include "util/geometry.hpp"
+#include "util/wkt_writer.hpp"
+#include "util/statistics_writer.hpp"
+#include "util/util.hpp"
 #include <iostream>
 #include <cmath>
 #include <algorithm>

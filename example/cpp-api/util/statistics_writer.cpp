@@ -11,7 +11,7 @@ FDPP::IO::StatsWriter::StatsWriter(const std::string &result_file) : m_fstream(r
 
 
 void FDPP::IO::StatsWriter::write_header() {
-    m_fstream << "id;trace_id;length_trace;length_index;avg_error;hausdorff;frechet;" << '\n';
+    m_fstream << "id;length_trace;length_index;avg_error;hausdorff;frechet;" << '\n';
 }
 
 void

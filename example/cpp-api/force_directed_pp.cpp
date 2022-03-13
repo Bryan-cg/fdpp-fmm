@@ -48,6 +48,7 @@ ForceDirectedPP::ForceDirectedPP(char *shapeFile, char *tracesFile, char *ubodtF
     this->networkGraph = new NETWORK::NetworkGraph(*(this->network));
     this->gps_config = new GPSConfig(tracesFile);
     this->result_config = new ResultConfig();
+    this->result_config->output_config.write_cpath = false;
     result_config->file = "output_fdpp_10.csv";
 
     SPDLOG_INFO("Iterations FDPP {}", _iterations_fdpp);
@@ -78,76 +79,42 @@ void ForceDirectedPP::match() {
     FMM::IO::GPSReader reader(*gps_config);
     FMM::IO::CSVMatchResultWriter writer(result_config->file, result_config->output_config);
     int buffer_trajectories_size = 100000;
-    while (reader.has_next_trajectory()) {
-        SPDLOG_INFO("Force directed displacement of buffered GPS points");
-        std::vector<Trajectory> trajectories_init = reader.read_next_N_trajectories(buffer_trajectories_size);
-        std::vector<Trajectory> trajectories;
-        for (auto &&t: trajectories_init) {
-            Trajectory tn(t);
-            //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
-            tn.geom = UTIL::add_noise(tn.geom);
-            tn.geom = UTIL::add_noise(tn.geom);
-            trajectories.push_back(tn);
-        }
-        std::vector<Trajectory> traces = trajectories;
-        int trajectories_fetched = trajectories.size();
-        for (int i = 0; i < trajectories_fetched; ++i) {
-            Trajectory &trajectory = trajectories[i];
-            force_directed_displacement(trajectory);
-        }
-        SPDLOG_INFO("FMM of displaced GPS points");
-        std::vector<MM::MatchResult> mr_pp = fmmw->match(trajectories);
-        SPDLOG_INFO("FMM of original trajectories");
-        std::vector<MM::MatchResult> mr_no_pp = fmmw->match(traces);
-        sort(mr_pp.begin(), mr_pp.end(),
-             [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
-        sort(mr_no_pp.begin(), mr_no_pp.end(),
-             [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
 
-        double count_improved = 0.0;
-        std::vector<MM::MatchResult> final_results = combine_fmm_fdpp_output(mr_pp, mr_no_pp, traces, &count_improved);
-
-        SPDLOG_INFO("Calculating accuracy & flushing matches to output file");
-        FDPP::IO::StatsWriter stats_writer("stats.csv");
-        double li_total = 0.0;
-        double avgE_total = 0.0;
-        double frechet_total = 0.0;
-        double hausdorff_total = 0.0;
-        double count_unmatched = 0.0;
-        for (int i = 0; i < trajectories_fetched; i++) {
-            Trajectory &trajectory = traces[i];
-            MatchResult &match_result = final_results[i];
-            writer.write_result(trajectory, match_result);
-            double li, avgE, frechet, hausdorff;
-            GEOM::calc_accuracy(
-                    GEOM::cart_to_degr_linestring(traces[i].geom),
-                    GEOM::cart_to_degr_linestring(match_result.mgeom),
-                    &li,
-                    &avgE,
-                    &frechet,
-                    &hausdorff);
-            if (li == 0.0) {
-                count_unmatched += 1.0;
-                continue;
-            }
-            stats_writer.write_result(i + 1, bg::length(GEOM::cart_to_degr_linestring(traces[i].geom), Haversine), li,
-                                      avgE, hausdorff, frechet);
-            li_total += li;
-            avgE_total += avgE;
-            frechet_total += frechet;
-            hausdorff_total += hausdorff;
-        }
-        li_total /= trajectories_fetched;
-        avgE_total /= trajectories_fetched;
-        frechet_total /= trajectories_fetched;
-        hausdorff_total /= trajectories_fetched;
-        double improved_per = (count_improved / (trajectories_fetched - count_unmatched)) * 100;
-        SPDLOG_INFO("Accuracy: li {}, avg error {}, frechet {}, hausdorff {}", li_total, avgE_total, frechet_total,
-                    hausdorff_total);
-        SPDLOG_INFO("improved {}, total {} ==> {}%", count_improved, (trajectories_fetched - count_unmatched),
-                    improved_per);
-        SPDLOG_INFO("unmatched traces {}", count_unmatched);
+    SPDLOG_INFO("Force directed displacement of buffered GPS points");
+    std::vector<Trajectory> trajectories_init = reader.read_all_trajectories();
+    std::vector<Trajectory> trajectories;
+    for (auto &&t: trajectories_init) {
+        Trajectory tn(t);
+        //tn.geom = UTIL::lower_sample_freq(t.geom, 5);
+        //tn.geom = UTIL::add_noise(tn.geom);
+        //tn.geom = UTIL::add_noise(tn.geom);
+        trajectories.push_back(tn);
     }
+    std::vector<Trajectory> traces = trajectories;
+    int trajectories_fetched = trajectories.size();
+    for (int i = 0; i < trajectories_fetched; ++i) {
+        Trajectory &trajectory = trajectories[i];
+        //force_directed_displacement(trajectory);
+    }
+    SPDLOG_INFO("FMM of displaced GPS points");
+    std::vector<MM::MatchResult> mr_pp = fmmw->match(trajectories);
+    SPDLOG_INFO("FMM of original trajectories");
+    std::vector<MM::MatchResult> mr_no_pp = fmmw->match(traces);
+    sort(mr_pp.begin(), mr_pp.end(),
+         [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
+    sort(mr_no_pp.begin(), mr_no_pp.end(),
+         [](const MatchResult &r1, const MatchResult &r2) { return r1.id < r2.id; });
+
+    double count_improved = 0.0;
+    std::vector<MM::MatchResult> final_results = combine_fmm_fdpp_output(mr_pp, mr_no_pp, traces, &count_improved);
+    SPDLOG_INFO("Flushing to output file");
+    for (int i = 0; i < trajectories_fetched; i++) {
+        Trajectory &trajectory = traces[i];
+        MatchResult &match_result = final_results[i];
+        writer.write_result(trajectory, match_result);
+    }
+    double improved_per = (count_improved / (trajectories_fetched)) * 100;
+    SPDLOG_INFO("improved {}, total {} ==> {}%", count_improved, trajectories_fetched, improved_per);
     SPDLOG_INFO("FDPP & FMM completed");
 }
 
