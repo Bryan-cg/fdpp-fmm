@@ -37,4 +37,6 @@ namespace GEOM {
                   double *hausdorff);
 
     double calc_avg_error(const LineStringDeg &trace, const LineStringDeg &match);
+
+    LineString degr_to_cart_linestring(const LineStringDeg &ls);
 }

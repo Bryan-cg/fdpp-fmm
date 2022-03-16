@@ -263,6 +263,7 @@ std::vector<MatchResult> FastMapMatch::match_trajectories(
   ){
   std::ostringstream oss;
   std::string status;
+  int trajectories_fetched = trajectories.size();
   // Start map matching
   std::vector<MatchResult> match_results;
   int progress = 0;
@@ -270,52 +271,47 @@ std::vector<MatchResult> FastMapMatch::match_trajectories(
   int total_points = 0;
   int traj_matched = 0;
   int total_trajs = 0;
-  int step_size = 50;
+  int step_size = 100;
   auto begin_time = UTIL::get_current_time();
-  if (use_omp){
-    int trajectories_fetched = trajectories.size();
-    #pragma omp parallel for
-    for (int i = 0; i < trajectories_fetched; ++i) {
-      Trajectory &trajectory = trajectories[i];
-      int points_in_tr = trajectory.geom.get_num_points();
-      MM::MatchResult result = match_traj(trajectory, fmm_config);
-      if(result.cpath.empty()) {
-        SPDLOG_WARN("HMM state transistion failed, using fallback STM for matching");
-        result = stmMatch_.match_traj(trajectory, stmConfig_);
-      }
-      #pragma omp critical
-      match_results.push_back(result);
-      if (!result.cpath.empty()) {
-        points_matched += points_in_tr;
-        traj_matched+=1;
-      }
-      total_points += points_in_tr;
-      total_trajs += 1;
-      ++progress;
-      if (progress % step_size == 0) {
-        std::stringstream buf;
-        buf << "Matched " << progress << " trajectories\n";
-        std::cout << buf.rdbuf();
-      }
-    }
-  } else {
-      if (progress % step_size == 0) {
-        SPDLOG_INFO("Progress {}", progress);
-      }
-      for (std::vector<Trajectory>::iterator it = trajectories.begin() ; it != trajectories.end(); ++it){
-        Trajectory trajectory = *it;
-        int points_in_tr = trajectory.geom.get_num_points();
-        MM::MatchResult result = match_traj(trajectory, fmm_config);
-        match_results.push_back(result);
-        if (!result.cpath.empty()) {
-          points_matched += points_in_tr;
-          traj_matched+=1;
+  if (use_omp) {
+      #pragma omp parallel 
+      {
+        std::vector<MatchResult> match_results_slave;
+        #pragma omp for nowait
+        for (int i = 0; i < trajectories_fetched; ++i) {
+          Trajectory &trajectory = trajectories[i];
+          int points_in_tr = trajectory.geom.get_num_points();
+          MM::MatchResult result = match_traj(trajectory, fmm_config);
+          //if(result.cpath.empty()) {
+          //  SPDLOG_WARN("HMM state transistion failed, using fallback STM for matching");
+          //  result = stmMatch_.match_traj(trajectory, stmConfig_);
+          //}
+          match_results_slave.push_back(result);
+          #pragma omp critical
+          {
+            if (!result.cpath.empty()){
+              points_matched += points_in_tr;
+              traj_matched += 1;
+            }
+            total_points += points_in_tr;
+            total_trajs += 1;
+            ++progress;
+            if (progress % step_size == 0){
+              std::stringstream buf;
+              buf << "Matched " << progress << " trajectories\n";
+              std::cout << buf.rdbuf();
+            }
+          }
         }
-        total_points += points_in_tr;
-        total_trajs += 1;
-        ++progress;
-      }        
+        #pragma omp critical
+        {
+        match_results.insert(match_results.end(),
+                        std::make_move_iterator(match_results_slave.begin()),
+                        std::make_move_iterator(match_results_slave.end()));
+        }
+      }
   }
+
   auto end_time = UTIL::get_current_time();
   double duration = UTIL::get_duration(begin_time,end_time);
   oss<<"Status: success\n";

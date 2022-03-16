@@ -48,6 +48,16 @@ LineStringDeg GEOM::cart_to_degr_linestring(const LineString &ls) {
     return lsdg;
 }
 
+LineString GEOM::degr_to_cart_linestring(const LineStringDeg &ls) {
+    LineString ls_res;
+    for (int i = 0; i < ls.size(); i++) {
+        PointDeg pdg = ls.at(i);
+        Point p(pdg.get<0>(), pdg.get<1>());
+        ls_res.add_point(p);
+    }
+    return ls_res;
+}
+
 double
 GEOM::calculate_cos_theta(const Point &p1_edge, const Point &p2_edge, const Point &p1_trace, const Point &p2_trace) {
     // Convert points to radians for calculations formula
@@ -106,5 +116,5 @@ double GEOM::calc_avg_error(const LineStringDeg &trace, const LineStringDeg &mat
         }
         total_min += min_dist;
     }
-    return total_min / N;
+    return total_min / (double) N;
 }
